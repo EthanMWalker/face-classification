@@ -1,9 +1,10 @@
-import resnet.Tools
 import resnet.Blocks
-import resnet.Models
 import resnet.Components
+import resnet.Layers
+import resnet.Models
+import resnet.Tools
 
 __all__ = [
   resnet.Tools, resnet.Blocks, resnet.Models,
-  resnet.Components
+  resnet.Components, resnet.Layers
 ]

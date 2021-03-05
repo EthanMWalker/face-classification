@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 from resnet.Models import ResNetSimCLR
 from SimCLR.Loss import NTCrossEntropyLoss
-from SimCLR.Components import ProjectionHead
 
 from tqdm import tqdm
 

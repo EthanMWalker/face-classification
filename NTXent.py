@@ -22,8 +22,6 @@ class NTXentLoss(nn.Module):
     pos_mask[[0,self.batch_size]] = 1
     neg_mask = ~pos_mask.astype(bool)
     return torch.from_numpy(neg_mask).to(self.device)
-
-
   
   def similarity(self,x,y):
     tmps = []
@@ -33,7 +31,6 @@ class NTXentLoss(nn.Module):
     
     return torch.stack(tmps)
     
-
   def forward(self, rep1, rep2):
 
     dbl_batch = 2*self.batch_size

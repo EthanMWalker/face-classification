@@ -1,7 +1,8 @@
 import torch.nn as nn
 from resnet.Tools import activation_func
-from functools import partial
 from resnet.Components import Conv2dPadded
+
+from functools import partial
 
 class ResNetBlock(nn.Module):
   '''

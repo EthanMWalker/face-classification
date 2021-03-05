@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 from resnet.Layers import ResNetEncoder, ResNetDecoder
-from resnet.Components import Conv2dPadded
+from resnet.Components import Conv2dPadded, ProjectionHead
 from resnet.Tools import initialization
 import torch.nn.functional as F
 
@@ -11,11 +11,11 @@ class ResNet(nn.Module):
   '''
 
   def __init__(self, in_channels, n_classes, init='xavier', *args, **kwargs):
-    super().__init__()
+    super(ResNet, self).__init__()
     self.init_func = initialization[init]
     self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
     self.decoder = ResNetDecoder(
-    self.encoder.blocks[-1].out_channels, n_classes
+      self.encoder.blocks[-1].out_channels, n_classes
     )
     self.initialize()
 
@@ -34,28 +34,53 @@ class ResNet(nn.Module):
     x = self.decoder(x)
     return x
 
-
-
 class ResNetSimCLR(nn.Module):
     
-    def __init__(self, in_channels, out_channels):
-        super(ResNetSimCLR,self).__init__()
-        
-        resnet = ResNetEncoder(in_channels, out_channels)
-        num_ftrs = resnet.fc.in_features
+  def __init__(self, in_channels, d_rep, n_classes, d_hidden=1024, mlp_layers=2,
+              *args, **kwargs):
+    '''
+    Parameters:
+      in_channels (int): number of channels in the input
+      d_rep (int): dimension of the representation, or the dimension of
+          the output of the resnet
+      n_classes (int): output dimension for the projection head
+      d_hidden (int): hidden features in the projection head
+      mlp_layers (int): number of layers in the projection head
+    
+    kwargs you might want to know:
+      blocks_sizes (list(int)): list of the sizes of the hidden dimensions 
+          in each of the blocks of the encoder
+      blocks_layers (list(int)): list of the number of layers in each
+          of the blocks
+    
+    The resnet defaults to a 16 layers
+    '''
 
-        self.features = nn.Sequential(*list(resnet.children())[:-1])
+    super(ResNetSimCLR, self).__init__()
+    self.init_func = initialization['orthogonal']
 
-        # projection MLP
-        self.l1 = nn.Linear(num_ftrs, num_ftrs)
-        self.l2 = nn.Linear(num_ftrs, out_channels)
-        
-        
-    def forward(self, x):
-        h = self.features(x)
-        h = h.squeeze()
+    self.resnet = ResNet(in_channels, d_rep, *args, **kwargs)
 
-        x = self.l1(h)
-        x = F.relu(x)
-        x = self.l2(x)
-        return h, x 
+    self.projection_head = ProjectionHead(
+      d_rep, n_classes, d_hidden, n_layers=mlp_layers
+    )
+
+    self.initialize()
+      
+  def initialize(self):
+
+    # define the initialize function we will use on the modules
+    def init(w):
+      if type(w) in [nn.Linear, nn.Conv2d, Conv2dPadded]:
+        self.init_func(w.weight)
+    # apply the initializations
+    self.encoder.apply(init)
+    self.decoder.apply(init)
+      
+  def forward(self, x):
+    h = self.resnet(x)
+    h = h.squeeze()
+
+    x = self.projection_head(x)
+
+    return h, x 

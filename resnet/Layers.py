@@ -50,7 +50,7 @@ class ResNetEncoder(nn.Module):
   '''
 
   def __init__(self, in_channels=3, blocks_sizes=[2**i for i in [5, 6, 7, 8]],
-           blocks_layers=[2, 2, 2, 2], activation='relu', block=ResNetBlock,
+           blocks_layers=[4, 4, 4, 4], activation='relu', block=ResNetBlock,
            *args, **kwargs):
     super().__init__()
     self.blocks_sizes = blocks_sizes

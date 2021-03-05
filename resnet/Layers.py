@@ -1,5 +1,5 @@
-import torch 
 import torch.nn as nn
+
 from resnet.Blocks import ResNetBlock
 from resnet.Tools import activation_func
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-class NTXentLoss(nn.Module):
+class NTCrossEntropyLoss(nn.Module):
   '''
   NT cross entropy loss
   '''

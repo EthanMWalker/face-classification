@@ -2,7 +2,7 @@ import torch
 import torch.nn
 
 from resnet.Models import ResNet
-from SimCLR.Loss import NTXentLoss
+from SimCLR.Loss import NTCrossEntropyLoss
 
 
 class SimCLR(nn.Module):

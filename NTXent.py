@@ -16,26 +16,6 @@ class NTXentLoss(nn.Module):
     self.cosine_similarity = nn.CosineSimilarity(dim=-1)
     self.criterion = nn.CrossEntropyLoss(reduction='sum')
 
-
-  # @property
-  # def negative_representations_mask(self):
-    
-  #   # create identity map
-  #   identity_mask = np.eye(2*self.batch_size)
-
-  #   # maps for the first representation to the second and the second to
-  #   # the first
-  #   lh_mask = np.eye(2*self.batch_size, k=self.batch_size)
-  #   rh_mask = np.eye(2*self.batch_size, k=-self.batch_size)
-
-  #   # add masks to get the positive mask
-  #   postive_mask = identity_mask + lh_mask + rh_mask
-
-  #   # get the negative mask and send it to the torch device
-  #   negative_mask = 1 - postive_mask
-  #   mask = torch.from_numpy(negative_mask).type(torch.bool).to(self.device)
-  #   return mask
-  
   @property
   def negative_representations_mask(self):
     pos_mask = np.zeros(2*self.batch_size)

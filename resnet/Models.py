@@ -22,8 +22,8 @@ class ResNet(nn.Module):
 
     # define the initialize function we will use on the modules
     def init(w):
-    if type(w) in [nn.Linear, nn.Conv2d, Conv2dPadded]:
-      self.init_func(w.weight)
+      if type(w) in [nn.Linear, nn.Conv2d, Conv2dPadded]:
+        self.init_func(w.weight)
     # apply the initializations
     self.encoder.apply(init)
     self.decoder.apply(init)

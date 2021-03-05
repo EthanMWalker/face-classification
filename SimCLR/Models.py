@@ -15,5 +15,15 @@ class SimCLR(nn.Module):
   def __init__(self, *args, **kwargs):
     super().__init__()
 
-    return
+    self.resnet = ResNet()
+    self.criterion = NTCrossEntropyLoss().to(self.device)
+    self.optimizer = torch.optim.Adam(self.resnet.parameters())
 
+    return
+  
+  @property
+  def device(self):
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+  def train(self):
+    pass

@@ -1,5 +1,5 @@
 import torch
-import torch.nn
+import torch.nn as nn
 
 from resnet.Models import ResNet
 from SimCLR.Loss import NTCrossEntropyLoss

@@ -35,14 +35,14 @@ class NTXentLoss(nn.Module):
 
     dbl_batch = 2*self.batch_size
 
-    representations = torch.cat([rep1, rep2], dim=0)
+    reps = torch.cat([rep1, rep2], dim=0)
 
-    similarities = self.similarity(representations, representations)
-    positive_similarities = similarities[self.batch_size].view(dbl_batch,1)
-    negative_similarities = similarities[self.negative_representations_mask]
-    negative_similarities = negative_similarities.view(dbl_batch, -1)
+    sims = self.similarity(reps, reps)
+    pos_sims = sims[self.batch_size].view(dbl_batch,1)
+    neg_sims = sims[self.negative_representations_mask]
+    neg_sims = neg_sims.view(dbl_batch, -1)
 
-    logits = torch.cat([positive_similarities, negative_similarities], dim=1)
+    logits = torch.cat([pos_sims, neg_sims], dim=1)
     logits /= self.temperature
 
     labels = torch.zeros(dbl_batch).to(self.device).long()

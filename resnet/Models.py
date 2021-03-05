@@ -3,6 +3,7 @@ import torch.nn as nn
 from resnet.Layers import ResNetEncoder, ResNetDecoder
 from resnet.Components import Conv2dPadded
 from resnet.Tools import initialization
+import torch.nn.functional as F
 
 class ResNet(nn.Module):
   '''
@@ -32,3 +33,29 @@ class ResNet(nn.Module):
     x = self.encoder(x)
     x = self.decoder(x)
     return x
+
+
+
+class ResNetSimCLR(nn.Module):
+    
+    def __init__(self, in_channels, out_channels):
+        super(ResNetSimCLR,self).__init__()
+        
+        resnet = ResNetEncoder(in_channels, out_channels)
+        num_ftrs = resnet.fc.in_features
+
+        self.features = nn.Sequential(*list(resnet.children())[:-1])
+
+        # projection MLP
+        self.l1 = nn.Linear(num_ftrs, num_ftrs)
+        self.l2 = nn.Linear(num_ftrs, out_channels)
+        
+        
+    def forward(self, x):
+        h = self.features(x)
+        h = h.squeeze()
+
+        x = self.l1(h)
+        x = F.relu(x)
+        x = self.l2(x)
+        return h, x 

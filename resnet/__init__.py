@@ -5,5 +5,5 @@ import resnet.Components
 
 __all__ = [
   resnet.Tools, resnet.Blocks, resnet.Models,
-  resnet.Components, resnet.DataManager
+  resnet.Components
 ]

@@ -24,8 +24,8 @@ transform = DataAugmentation(s, input_shape)
 augment = transform.augment()
 
 # load data
-trainset = tv.datasets.CIFAR10(root='/home/becca/Document/git/face-classification/TestData',
-                               train=True,download=False,transform=SimCLRDataTransform(augment))
+trainset = tv.datasets.CIFAR10(root='TestData',
+                               train=True,download=True,transform=SimCLRDataTransform(augment))
 
 
 

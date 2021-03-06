@@ -6,14 +6,14 @@ Created on Fri Mar  5 19:16:11 2021
 @author: becca
 """
 
-import torch
+
 import torchvision as tv
 from Augment import DataAugmentation, SimCLRDataTransform
 from Models import SimCLR
 
 s = 1
 input_shape = (96,96,3)
-batch_size = 128
+batch_size = 1
 n_classes= 10
 in_channels = 3
 d_rep = 128
@@ -31,4 +31,4 @@ trainset = tv.datasets.CIFAR10(root='/home/becca/Document/git/face-classificatio
 
 simclr = SimCLR()
 data = simclr.load_data(trainset,s,input_shape)
-model,losses = simclr.train(data, temperature,n_epochs=5)
+model,losses = simclr.train(data, temperature,n_epochs=5,ckpt_path='CIFAR10.tar')

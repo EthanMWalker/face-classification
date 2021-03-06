@@ -31,8 +31,8 @@ class SimCLR:
   @property
   def device(self):
    
-      #return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    return 'cpu'
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
   def load_data(self, dataset, s, input_shape):
     # create data loader
@@ -58,38 +58,43 @@ class SimCLR:
 
     losses = []
 
-    for epoch in tqdm(range(n_epochs)):
-      running_loss = 0
-      i = 0
-      for (xis, xjs), _ in dataloader:
-        print("i",i)
-        i += 1
-        optimizer.zero_grad()
-        
-        xis = xis.to(self.device)
-        xjs = xjs.to(self.device)
-        
-        # Get representations and projections
-        his, zis = self.model(xis)
-        hjs, zjs= self.model(xjs)
-        
-        # normalize
-        zis = F.normalize(zis, dim=1)
-        zjs = F.normalize(zjs, dim=1)
-        
-        loss = criterion(zis, zjs)
-        
-        # optimize
-        loss.backward()
-        optimizer.step()
 
-        # record loss
-        if i%save_size == 0:
-          losses.append(running_loss / save_size)
-          running_loss = 0
+    for epoch in range(n_epochs):
+      with tqdm(total=len(dataloader)) as progress:
+        running_loss = 0
+        i = 0
+        for (xis, xjs), _ in dataloader:
+          i += 1
+          optimizer.zero_grad()
+        
+          xis = xis.to(self.device)
+          xjs = xjs.to(self.device)
+        
+          # Get representations and projections
+          his, zis = self.model(xis)
+          hjs, zjs= self.model(xjs)
+        
+          # normalize
+          zis = F.normalize(zis, dim=1)
+          zjs = F.normalize(zjs, dim=1)
+        
+          loss = criterion(zis, zjs)
+        
+          # optimize
+          loss.backward()
+          optimizer.step()
+        
+          # update tqdm
+          progress.set_description('loss:{:.4f}'.format(loss.item()))
+          progress.update()
+        
+          # record loss
+          if i%save_size == 0:
+            losses.append(running_loss / save_size)
+            running_loss = 0
 
-      if epoch >= 10:
-        scheduler.step()
+        if epoch >= 10:
+          scheduler.step()
 
     return self.get_model(), losses
 

@@ -31,4 +31,7 @@ trainset = tv.datasets.CIFAR10(root='/home/becca/Document/git/face-classificatio
 
 simclr = SimCLR()
 data = simclr.load_data(trainset,s,input_shape)
-model,losses = simclr.train(data, temperature,n_epochs=5,ckpt_path='CIFAR10.tar')
+model,losses = simclr.train(data, temperature,n_epochs=3,ckpt_path='CIFAR10.tar')
+
+
+

@@ -78,6 +78,7 @@ class SimCLR:
           zjs = F.normalize(zjs, dim=1)
         
           loss = criterion(zis, zjs)
+          running_loss += loss.item()
         
           # optimize
           loss.backward()

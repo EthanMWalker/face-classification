@@ -30,7 +30,6 @@ class SimCLR:
   
   @property
   def device(self):
-   
     return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
@@ -42,8 +41,8 @@ class SimCLR:
     return data_loader
       
 
-  def train(self, dataloader, temperature, n_epochs=90, log_steps=100, 
-            ave_size=2000,save_size=10):
+  def train(self, dataloader, temperature, ckpt_path, n_epochs=90, 
+            log_steps=100, ave_size=2000,save_size=10,):
     
 
 
@@ -95,7 +94,15 @@ class SimCLR:
 
         if epoch >= 10:
           scheduler.step()
-
+        
+        # save model
+        if epoch%10 == 0:
+          torch.save({
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss,},ckpt_path)
+ 
     return self.get_model(), losses
 
   def get_model(self):

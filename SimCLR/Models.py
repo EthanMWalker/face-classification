@@ -24,13 +24,14 @@ class SimCLR:
 
     # define the model
     self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
+    num_params = sum(p.numel() for p in self.model.parameters())
     self.model = self.model.to(self.device)
     
     self.batch_size = batch_size
   
   @property
   def device(self):
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 
   def load_data(self, dataset, s, input_shape):

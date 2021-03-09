@@ -49,7 +49,7 @@ class ResNetEncoder(nn.Module):
   I tried to base this on table 1 of the paper
   '''
 
-  def __init__(self, in_channels=3, blocks_sizes=[2**i for i in [5, 6, 7, 8]],
+  def __init__(self, in_channels=3, blocks_sizes=[2**i for i in [6,7,8,9]],
            blocks_layers=[4, 4, 4, 4], activation='relu', block=ResNetBlock,
            *args, **kwargs):
     super().__init__()

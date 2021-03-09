@@ -1,3 +1,5 @@
 *.csv
 data/
 SimCLR-2/
+SimCLR/TestData
+SimCLR/*.tar

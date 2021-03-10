@@ -11,6 +11,7 @@ import torchvision as tv
 from torchvision.transforms import transforms
 from Augment import DataAugmentation, SimCLRDataTransform
 from Models import SimCLR
+import matplotlib.pyplot as plt
 
 s = 1
 input_shape = (96,96,3)
@@ -37,6 +38,12 @@ model,losses = simclr.train(
   data, temperature, n_epochs=5, ckpt_path='CIFAR10.tar'
 )
 
+plt.plot(losses)
+plt.title('train losses')
+plt.savefig('train_losses')
+plt.clf()
+
+
 # fine tuning transform
 transform = transforms.Compose(
   [transforms.ToTensor(), transforms.Normalize((.5,.5,.5),(.5,.5,.5))]
@@ -56,5 +63,8 @@ simclr.load_model('CIFAR10.tar')
 data = simclr.load_data(tuneset, s, input_shape)
 model, losses = simclr.fine_tune(data, 'CIFAR10-tune.tar', n_epochs=10)
 
-
+plt.plot(losses)
+plt.title('fine tuning losses')
+plt.savefig('tune_losses')
+plt.clf()
 

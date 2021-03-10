@@ -34,7 +34,7 @@ class SimCLR:
   
   @property
   def device(self):
-    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
   def load_data(self, dataset, s, input_shape):
@@ -178,3 +178,6 @@ class SimCLR:
     net = self.model.resnet
     head_layer = self.model.projection_head.layers[0]
     return net, head_layer
+  
+  def load_model(self, path):
+    self.model.load_state_dict(torch.load(path)['model_state_dict'])

@@ -31,7 +31,7 @@ trainset = tv.datasets.CIFAR10(
 )
 
 # perform training
-simclr = SimCLR()
+simclr = SimCLR(batch_size=40)
 data = simclr.load_data(trainset,s,input_shape)
 model,losses = simclr.train(
   data, temperature, n_epochs=5, ckpt_path='CIFAR10.tar'
@@ -49,7 +49,7 @@ tuneset = tv.datasets.CIFAR10(
 
 
 # make simclr with the pretrained model
-simclr = SimCLR()
+simclr = SimCLR(batch_size=10)
 simclr.load_model('CIFAR10.tar')
 
 # do the fine tuning

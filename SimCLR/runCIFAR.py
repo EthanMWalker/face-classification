@@ -32,7 +32,7 @@ def finetuneCIFAR():
     # do the fine tuning
     data = simclr.load_data(tuneset, s, input_shape)
     model, losses = simclr.fine_tune(data, 'CIFAR10-tune.tar', n_epochs=10)
-    
+
     return model, losses
 
 

@@ -18,18 +18,23 @@ class SimCLR:
   does training using contrastive loss and returns a trained resnet
   '''
 
-  def __init__(self, in_channels=3, d_rep=1024, n_classes=10, batch_size=128,
-               *args, **kwargs):
+  def __init__(self, model=None, in_channels=3, d_rep=1024, n_classes=10,
+              batch_size=128, *args, **kwargs):
 
-    # define the model
-    self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
+    if model is None:
+      # define the model
+      self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
+    else:
+      # use a pretrained model
+      self.model = model
     self.model = self.model.to(self.device)
+    self.num_params = sum(p.numel() for p in self.model.parameters())
     
     self.batch_size = batch_size
   
   @property
   def device(self):
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 
   def load_data(self, dataset, s, input_shape):
@@ -105,11 +110,78 @@ class SimCLR:
     
  
     return self.get_model(), losses
+  
+  def fine_tune(self, dataloader, ckpt_path, n_epochs=90, save_size=10):
+    '''
+    This fine tuning is designed for normal cross entropy loss training
+    '''
+
+    # trainers
+    criterion = nn.CrossEntropyLoss().to(self.device)
+    
+    # only optimize the end of the projection head
+    optimizer = torch.optim.Adam(
+      self.model.projection_head.layers[1:].parameters()
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+      optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1
+    )
+
+    losses = []
+
+    for epoch in range(n_epochs):
+      with tqdm(total=len(dataloader)) as progress:
+        running_loss = 0
+        i = 0
+        for data in dataloader:
+          i += 1
+          optimizer.zero_grad()
+        
+          x = data[0].to(self.device)
+          y = data[1].to(self.device)
+        
+          # Get representations and projections
+          h, z = self.model(x)
+        
+          # normalize
+          zis = F.normalize(z, dim=1)
+        
+          loss = criterion(z, y)
+          running_loss += loss.item()
+        
+          # optimize
+          loss.backward()
+          optimizer.step()
+        
+          # update tqdm
+          progress.set_description('loss:{:.4f}'.format(loss.item()))
+          progress.update()
+        
+          # record loss
+          if i%save_size == 0:
+            losses.append(running_loss / save_size)
+            running_loss = 0
+
+        if epoch >= 10:
+          scheduler.step()
+        
+        # save model
+        if epoch%10 == 0:
+          torch.save({
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss,},ckpt_path)
+
+    return self.model, losses
 
   def get_model(self):
     net = self.model.resnet
     head_layer = self.model.projection_head.layers[0]
     return net, head_layer
+  
+  def load_model(self, path):
+    self.model.load_state_dict(torch.load(path)['model_state_dict'])
 
 
 

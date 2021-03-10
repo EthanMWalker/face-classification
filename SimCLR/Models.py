@@ -34,7 +34,7 @@ class SimCLR:
   
   @property
   def device(self):
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 
   def load_data(self, dataset, s, input_shape):

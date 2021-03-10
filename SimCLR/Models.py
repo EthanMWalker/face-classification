@@ -178,3 +178,6 @@ class SimCLR:
     net = self.model.resnet
     head_layer = self.model.projection_head.layers[0]
     return net, head_layer
+  
+  def load_model(self, path):
+    self.model.load_state_dict(torch.load(path)['model_state_dict'])

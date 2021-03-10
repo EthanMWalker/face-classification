@@ -37,7 +37,7 @@ class SimCLR:
     return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
-  def load_data(self, dataset):
+  def load_data(self, dataset, s, input_shape):
     # create data loader
     data_loader = DataLoader(dataset, batch_size=self.batch_size, 
                     drop_last=True, shuffle=True, num_workers=2)

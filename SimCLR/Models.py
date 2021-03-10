@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from resnet.Models import ResNetSimCLR
-from SimCLR.Loss import NTCrossEntropyLoss
+from Loss import NTCrossEntropyLoss
 
 from tqdm import tqdm
 

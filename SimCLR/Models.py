@@ -107,6 +107,7 @@ class SimCLR:
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'loss': loss,},ckpt_path)
+    
  
     return self.get_model(), losses
   
@@ -181,3 +182,78 @@ class SimCLR:
   
   def load_model(self, path):
     self.model.load_state_dict(torch.load(path)['model_state_dict'])
+
+
+
+class Validate:
+  '''
+  Validate class
+
+  Takes a trained ResNetSimCLR model and computes accuracy 
+  '''
+  
+  def __init__(self, in_channels=3, d_rep=1024, n_classes=10, batch_size=1,
+               *args, **kwargs):
+
+    # define the model
+    self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
+    self.model = self.model.to(self.device)
+    
+    self.batch_size = batch_size
+  
+  @property
+  def device(self):
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+
+  def load_data(self, dataset, s, input_shape):
+    # create data loader
+    data_loader = DataLoader(dataset, batch_size=self.batch_size, 
+                    drop_last=True, shuffle=True, num_workers=2)
+    
+    return data_loader
+      
+     
+  
+  def validate_labels(self, modelpath, dataloader):
+    # validate test/validation set on trained model
+    
+    # load trained model
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(self.model.parameters())
+    
+    checkpoint = torch.load(modelpath,map_location=torch.device(self.device))
+    self.model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint['epoch']
+    loss = checkpoint['loss']
+    
+    self.model.eval()
+    
+    losses = 0
+    i_accuracy = 0
+    j_accuracy = 0
+
+    # validate 
+    for (xis, xjs), y in dataloader:
+
+      optimizer.zero_grad()
+    
+      xis = xis.to(self.device)
+      xjs = xjs.to(self.device)
+    
+      # Get representations and projections
+      his, zis = self.model(xis)
+      hjs, zjs= self.model(xjs)
+    
+      # normalize
+#      zis = F.normalize(zis)
+#      zjs = F.normalize(zjs)
+
+      
+      if zis.argmax() == y:
+          i_accuracy += 1
+      if zjs.argmax() == y:
+          j_accuracy += 1
+          
+    return i_accuracy, j_accuracy

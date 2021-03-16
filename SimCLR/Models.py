@@ -8,19 +8,9 @@ from Loss import NTCrossEntropyLoss
 
 from tqdm import tqdm
 
-
-
-
-class SimCLR:
-  '''
-  SimCLR class
-
-  does training using contrastive loss and returns a trained resnet
-  '''
-
+class BaseModel:
   def __init__(self, model=None, in_channels=3, d_rep=1024, n_classes=10,
               batch_size=128, *args, **kwargs):
-
     if model is None:
       # define the model
       self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
@@ -31,36 +21,42 @@ class SimCLR:
     self.num_params = sum(p.numel() for p in self.model.parameters())
     
     self.batch_size = batch_size
-  
+    
   @property
   def device(self):
-    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+  
+  def load_model(self, path):
+    self.model.load_state_dict(torch.load(path)['model_state_dict'])
 
   def load_data(self, dataset, s, input_shape):
     # create data loader
     data_loader = DataLoader(dataset, batch_size=self.batch_size, 
                     drop_last=True, shuffle=True, num_workers=2)
-    
     return data_loader
-      
 
+class Train(BaseModel):
+  def __init__(self, model=None, in_channels=3, d_rep=1024, n_classes=10,
+              batch_size=128):
+    super().__init__(
+      model, in_channels, d_rep, n_classes, batch_size, *args, **kwargs
+    )
+    
+  def return_model(self):
+    return model.resnet, model.projection_head.layers[0]
+  
   def train(self, dataloader, temperature, ckpt_path, n_epochs=90, 
             log_steps=100, ave_size=2000,save_size=10,):
     
-
-
     # trainers
     criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
                                    self.device).to(self.device)
-    
     optimizer = torch.optim.Adam(self.model.parameters())
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
       optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1
     )
 
     losses = []
-
 
     for epoch in range(n_epochs):
       with tqdm(total=len(dataloader)) as progress:
@@ -109,7 +105,14 @@ class SimCLR:
             'loss': loss,},ckpt_path)
     
  
-    return self.get_model(), losses
+    return self.return_model(), losses
+
+class Fine_Tune(BaseModel):
+  def __init__(self, model=None, in_channels=3, d_rep=1024, n_classes=10,
+              batch_size=128):
+    super().__init__(
+      model, in_channels, d_rep, n_classes, batch_size, *args, **kwargs
+    )
   
   def fine_tune(self, dataloader, ckpt_path, n_epochs=90, save_size=10):
     '''
@@ -175,47 +178,20 @@ class SimCLR:
 
     return self.model, losses
 
-  def get_model(self):
-    net = self.model.resnet
-    head_layer = self.model.projection_head.layers[0]
-    return net, head_layer
-  
-  def load_model(self, path):
-    self.model.load_state_dict(torch.load(path)['model_state_dict'])
-
-
-
-class Validate:
+class Validate(BaseModel):
   '''
   Validate class
 
   Takes a trained ResNetSimCLR model and computes accuracy 
   '''
   
-  def __init__(self, in_channels=3, d_rep=1024, n_classes=10, batch_size=1,
-               *args, **kwargs):
+  def __init__(self, model=None, in_channels=3, d_rep=1024, n_classes=10,
+              batch_size=128):
+    super().__init__(
+      model, in_channels, d_rep, n_classes, batch_size, *args, **kwargs
+    )
 
-    # define the model
-    self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
-    self.model = self.model.to(self.device)
-    
-    self.batch_size = batch_size
-  
-  @property
-  def device(self):
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-
-  def load_data(self, dataset, s, input_shape):
-    # create data loader
-    data_loader = DataLoader(dataset, batch_size=self.batch_size, 
-                    drop_last=True, shuffle=True, num_workers=2)
-    
-    return data_loader
-      
-     
-  
-  def validate_labels(self, modelpath, dataloader):
+  def validate(self, modelpath, dataloader):
     # validate test/validation set on trained model
     
     # load trained model
@@ -247,10 +223,9 @@ class Validate:
       hjs, zjs= self.model(xjs)
     
       # normalize
-#      zis = F.normalize(zis)
-#      zjs = F.normalize(zjs)
+      # zis = F.normalize(zis)
+      # zjs = F.normalize(zjs)
 
-      
       if zis.argmax() == y:
           i_accuracy += 1
       if zjs.argmax() == y:

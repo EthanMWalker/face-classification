@@ -113,7 +113,7 @@ def end_to_end():
   simclr = SimCLR(model)
 
   results = simclr.full_model_maker(
-    train_data, tune_data, val_data, n_cycles=2, train_epochs=1, tune_epochs=1,
+    train_data, tune_data, val_data, n_cycles=10, train_epochs=10, tune_epochs=20,
     train_path='chkpt/train.tar', tune_path='chkpt/tune.tar'
   )
 

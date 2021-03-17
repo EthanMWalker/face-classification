@@ -55,7 +55,7 @@ class Train(BaseModel):
     # trainers
     criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
                                    self.device).to(self.device)
-    optimizer = LARS(torch.optim.SGD(self.model.parameters(), lr=.1))
+    optimizer = LARS(torch.optim.SGD(self.model.parameters(), lr=10))
 
     losses = []
 
@@ -145,7 +145,7 @@ class FineTune(BaseModel):
           h, z = self.model(x)
         
           # normalize
-          zis = F.normalize(z, dim=1)
+          z = F.normalize(z, dim=1)
         
           loss = criterion(z, y)
           running_loss += loss.item()

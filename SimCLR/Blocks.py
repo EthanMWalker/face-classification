@@ -15,7 +15,7 @@ class ResNetBlock(nn.Module):
 
   def __init__(self, in_channels, out_channels,
            resampling=1, conv=None, activation='relu',
-           use_batch=False, use_dropout=False):
+           use_batch=True, use_dropout=True):
     super().__init__()
     self.in_channels = in_channels
     self.out_channels = out_channels
@@ -34,7 +34,7 @@ class ResNetBlock(nn.Module):
 
     # apply dropout
     if use_dropout:
-      dropout = nn.Dropout2d(p=.5, inplace=True)
+      dropout = nn.Dropout2d(p=.2, inplace=True)
     else:
       dropout = nn.Identity()
 

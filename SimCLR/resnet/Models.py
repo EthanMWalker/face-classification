@@ -36,7 +36,7 @@ class ResNet(nn.Module):
 
 class ResNetSimCLR(nn.Module):
     
-  def __init__(self, in_channels, d_rep, n_classes, d_hidden=1024, mlp_layers=2,
+  def __init__(self, in_channels, n_classes, d_hidden=1024, mlp_layers=2,
               *args, **kwargs):
     '''
     Parameters:
@@ -59,18 +59,18 @@ class ResNetSimCLR(nn.Module):
     super(ResNetSimCLR, self).__init__()
     self.init_func = initialization['orthogonal']
 
-    self.resnet = ResNet(in_channels, d_rep, *args, **kwargs)
+    self.in_channels = in_channels
+    self.n_classes = n_classes
+
+    self.resnet = ResNetEncoder(in_channels, *args, **kwargs)
 
     self.projection_head = ProjectionHead(
-      d_rep, n_classes, d_hidden, n_layers=mlp_layers
+      self.resnet.blocks[-1].out_channels,
+      n_classes, d_hidden, n_layers=mlp_layers
     )
       
       
   def forward(self, x):
-
     h = self.resnet(x)
-    h = h.squeeze()
-    
     x = self.projection_head(h)
-
     return h, x 

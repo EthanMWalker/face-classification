@@ -1,7 +1,4 @@
 *.csv
-data/
 SimCLR-2/
-SimCLR/TestData
-SimCLR/TuneData
-SimCLR/TrainData
+Data/
 *.tar

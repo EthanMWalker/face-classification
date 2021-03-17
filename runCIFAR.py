@@ -10,10 +10,10 @@ import torch
 import torchvision as tv
 from torchvision.transforms import transforms
 
-from Augment import TrainDataAugmentation, TuneDataAugmentation,\
+from SimCLR.Augment import TrainDataAugmentation, TuneDataAugmentation,\
   SimCLRDataTransform, TuneDataTransform
-from Models import Train, FineTune, Validate, SimCLR
-from resnet.Models import ResNetSimCLR
+from SimCLR.Models import Train, FineTune, Validate, SimCLR
+from SimCLR.resnet.Models import ResNetSimCLR
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -26,7 +26,7 @@ def finetuneCIFAR():
   )
   # dataset for finetuning
   tuneset = tv.datasets.CIFAR10(
-    root='TestData', train=True, download=True,
+    root='Data', train=True, download=True,
     transform=transform
   )
 
@@ -54,7 +54,7 @@ def trainCIFAR():
   
   # load data
   trainset = tv.datasets.CIFAR10(
-    root='TrainData', train=True, download=False, 
+    root='Data', train=True, download=False, 
     transform=SimCLRDataTransform(augment)
   )
   
@@ -89,7 +89,7 @@ def end_to_end():
   train_aug = train_trans.augment()
 
   train_data = tv.datasets.CIFAR10(
-    root='TrainData', train=True, download=True, 
+    root='Data', train=True, download=True, 
     transform=SimCLRDataTransform(train_aug)
   )
 
@@ -98,13 +98,13 @@ def end_to_end():
   tune_aug = tune_trans.augment()
 
   tune_data = tv.datasets.CIFAR10(
-    root='TuneData', train=True, download=True, 
+    root='Data', train=True, download=True, 
     transform=TuneDataTransform(tune_aug)
   )
 
   # set up val data
   val_data = tv.datasets.CIFAR10(
-    root='TuneData', train=False, download=True, 
+    root='Data', train=False, download=True, 
     transform=TuneDataTransform(tune_aug)
   )
 

@@ -1,7 +1,7 @@
 import torch.nn as nn
 
-from resnet.Blocks import ResNetBlock
-from resnet.Tools import activation_func
+from SimCLR.Blocks import ResNetBlock
+from SimCLR.Tools import activation_func
 
 
 class ResNetLayer(nn.Module):
@@ -87,10 +87,14 @@ class ResNetEncoder(nn.Module):
       ]
     )
 
+    self.AAP = nn.AdaptiveAvgPool2d((1, 1))
+
   def forward(self, x):
     x = self.first_block(x)
     for block in self.blocks:
       x = block(x)
+    x = self.AAP(x)
+    x = x.view(x.shape[0], -1)
     return x
 
 
@@ -103,11 +107,8 @@ class ResNetDecoder(nn.Module):
 
   def __init__(self, in_features, n_classes):
     super().__init__()
-    self.AAP = nn.AdaptiveAvgPool2d((1, 1))
     self.linear = nn.Linear(in_features, n_classes)
 
   def forward(self, x):
-    x = self.AAP(x)
-    x = x.view(x.shape[0], -1)
     x = self.linear(x)
     return x

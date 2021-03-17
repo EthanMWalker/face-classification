@@ -1,259 +1,76 @@
-import torch
 import torch.nn as nn
+
+from SimCLR.Layers import ResNetEncoder, ResNetDecoder
+from SimCLR.Components import Conv2dPadded, ProjectionHead
+from SimCLR.Tools import initialization
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 
-from resnet.Models import ResNetSimCLR
-from Loss import NTCrossEntropyLoss
-
-from tqdm import tqdm
-
-
-
-
-class SimCLR:
+class ResNet(nn.Module):
   '''
-  SimCLR class
-
-  does training using contrastive loss and returns a trained resnet
+  The final ResNet, made of an encoder and a decoder
   '''
 
-  def __init__(self, model=None, in_channels=3, d_rep=1024, n_classes=10,
-              batch_size=128, *args, **kwargs):
-
-    if model is None:
-      # define the model
-      self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
-    else:
-      # use a pretrained model
-      self.model = model
-    self.model = self.model.to(self.device)
-    self.num_params = sum(p.numel() for p in self.model.parameters())
-    
-    self.batch_size = batch_size
-  
-  @property
-  def device(self):
-    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-
-
-  def load_data(self, dataset, s, input_shape):
-    # create data loader
-    data_loader = DataLoader(dataset, batch_size=self.batch_size, 
-                    drop_last=True, shuffle=True, num_workers=2)
-    
-    return data_loader
-      
-
-  def train(self, dataloader, temperature, ckpt_path, n_epochs=90, 
-            log_steps=100, ave_size=2000,save_size=10,):
-    
-
-
-    # trainers
-    criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
-                                   self.device).to(self.device)
-    
-    optimizer = torch.optim.Adam(self.model.parameters())
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-      optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1
+  def __init__(self, in_channels, n_classes, init='xavier', *args, **kwargs):
+    super(ResNet, self).__init__()
+    self.init_func = initialization[init]
+    self.encoder = ResNetEncoder(in_channels, *args, **kwargs)
+    self.decoder = ResNetDecoder(
+      self.encoder.blocks[-1].out_channels, n_classes
     )
+    self.initialize()
 
-    losses = []
+  def initialize(self):
 
+    # define the initialize function we will use on the modules
+    def init(w):
+      if type(w) in [nn.Linear, nn.Conv2d, Conv2dPadded]:
+        self.init_func(w.weight)
+    # apply the initializations
+    self.encoder.apply(init)
+    self.decoder.apply(init)
 
-    for epoch in range(n_epochs):
-      with tqdm(total=len(dataloader)) as progress:
-        running_loss = 0
-        i = 0
-        for (xis, xjs), _ in dataloader:
-          i += 1
-          optimizer.zero_grad()
-        
-          xis = xis.to(self.device)
-          xjs = xjs.to(self.device)
-        
-          # Get representations and projections
-          his, zis = self.model(xis)
-          hjs, zjs= self.model(xjs)
-        
-          # normalize
-          zis = F.normalize(zis, dim=1)
-          zjs = F.normalize(zjs, dim=1)
-        
-          loss = criterion(zis, zjs)
-          running_loss += loss.item()
-        
-          # optimize
-          loss.backward()
-          optimizer.step()
-        
-          # update tqdm
-          progress.set_description('loss:{:.4f}'.format(loss.item()))
-          progress.update()
-        
-          # record loss
-          if i%save_size == 0:
-            losses.append(running_loss / save_size)
-            running_loss = 0
+  def forward(self, x):
+    x = self.encoder(x)
+    x = self.decoder(x)
+    return x
 
-        if epoch >= 10:
-          scheduler.step()
-        
-        # save model
-        if epoch%10 == 0:
-          torch.save({
-            'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,},ckpt_path)
+class ResNetSimCLR(nn.Module):
     
- 
-    return self.get_model(), losses
-  
-  def fine_tune(self, dataloader, ckpt_path, n_epochs=90, save_size=10):
+  def __init__(self, in_channels, n_classes, d_hidden=1024, mlp_layers=2,
+              *args, **kwargs):
     '''
-    This fine tuning is designed for normal cross entropy loss training
+    Parameters:
+      in_channels (int): number of channels in the input
+      d_rep (int): dimension of the representation, or the dimension of
+          the output of the resnet
+      n_classes (int): output dimension for the projection head
+      d_hidden (int): hidden features in the projection head
+      mlp_layers (int): number of layers in the projection head
+    
+    kwargs you might want to know:
+      blocks_sizes (list(int)): list of the sizes of the hidden dimensions 
+          in each of the blocks of the encoder
+      blocks_layers (list(int)): list of the number of layers in each
+          of the blocks
+    
+    The resnet defaults to a 16 layers
     '''
 
-    # trainers
-    criterion = nn.CrossEntropyLoss().to(self.device)
-    
-    # only optimize the end of the projection head
-    optimizer = torch.optim.Adam(
-      self.model.projection_head.layers[1:].parameters()
+    super(ResNetSimCLR, self).__init__()
+    self.init_func = initialization['orthogonal']
+
+    self.in_channels = in_channels
+    self.n_classes = n_classes
+
+    self.resnet = ResNetEncoder(in_channels, *args, **kwargs)
+
+    self.projection_head = ProjectionHead(
+      self.resnet.blocks[-1].out_channels,
+      n_classes, d_hidden, n_layers=mlp_layers
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-      optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1
-    )
-
-    losses = []
-
-    for epoch in range(n_epochs):
-      with tqdm(total=len(dataloader)) as progress:
-        running_loss = 0
-        i = 0
-        for data in dataloader:
-          i += 1
-          optimizer.zero_grad()
-        
-          x = data[0].to(self.device)
-          y = data[1].to(self.device)
-        
-          # Get representations and projections
-          h, z = self.model(x)
-        
-          # normalize
-          zis = F.normalize(z, dim=1)
-        
-          loss = criterion(z, y)
-          running_loss += loss.item()
-        
-          # optimize
-          loss.backward()
-          optimizer.step()
-        
-          # update tqdm
-          progress.set_description('loss:{:.4f}'.format(loss.item()))
-          progress.update()
-        
-          # record loss
-          if i%save_size == 0:
-            losses.append(running_loss / save_size)
-            running_loss = 0
-
-        if epoch >= 10:
-          scheduler.step()
-        
-        # save model
-        if epoch%10 == 0:
-          torch.save({
-            'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,},ckpt_path)
-
-    return self.model, losses
-
-  def get_model(self):
-    net = self.model.resnet
-    head_layer = self.model.projection_head.layers[0]
-    return net, head_layer
-  
-  def load_model(self, path):
-    self.model.load_state_dict(torch.load(path)['model_state_dict'])
-
-
-
-class Validate:
-  '''
-  Validate class
-
-  Takes a trained ResNetSimCLR model and computes accuracy 
-  '''
-  
-  def __init__(self, in_channels=3, d_rep=1024, n_classes=10, batch_size=1,
-               *args, **kwargs):
-
-    # define the model
-    self.model = ResNetSimCLR(in_channels, d_rep, n_classes, *args, **kwargs)
-    self.model = self.model.to(self.device)
-    
-    self.batch_size = batch_size
-  
-  @property
-  def device(self):
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-
-  def load_data(self, dataset, s, input_shape):
-    # create data loader
-    data_loader = DataLoader(dataset, batch_size=self.batch_size, 
-                    drop_last=True, shuffle=True, num_workers=2)
-    
-    return data_loader
       
-     
-  
-  def validate_labels(self, modelpath, dataloader):
-    # validate test/validation set on trained model
-    
-    # load trained model
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(self.model.parameters())
-    
-    checkpoint = torch.load(modelpath,map_location=torch.device(self.device))
-    self.model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    epoch = checkpoint['epoch']
-    loss = checkpoint['loss']
-    
-    self.model.eval()
-    
-    losses = 0
-    i_accuracy = 0
-    j_accuracy = 0
-
-    # validate 
-    for (xis, xjs), y in dataloader:
-
-      optimizer.zero_grad()
-    
-      xis = xis.to(self.device)
-      xjs = xjs.to(self.device)
-    
-      # Get representations and projections
-      his, zis = self.model(xis)
-      hjs, zjs= self.model(xjs)
-    
-      # normalize
-#      zis = F.normalize(zis)
-#      zjs = F.normalize(zjs)
-
       
-      if zis.argmax() == y:
-          i_accuracy += 1
-      if zjs.argmax() == y:
-          j_accuracy += 1
-          
-    return i_accuracy, j_accuracy
+  def forward(self, x):
+    h = self.resnet(x)
+    x = self.projection_head(h)
+    return h, x 

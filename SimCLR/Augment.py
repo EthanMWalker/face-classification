@@ -33,7 +33,7 @@ class GaussianBlur(object):
         return sample
 
 
-class DataAugmentation(object):
+class TrainDataAugmentation(object):
     def __init__(self,s,input_shape):
         self.s = s
         self.input_shape = input_shape
@@ -48,7 +48,29 @@ class DataAugmentation(object):
                                               GaussianBlur(kernel_size=int(0.1 * self.input_shape[0])),
                                               transforms.ToTensor()])
         return data_transforms
-    
+
+class TuneDataAugmentation(object):
+    def __init__(self,s,input_shape):
+        self.s = s
+        self.input_shape = input_shape
+        
+    def augment(self):
+        data_transforms = transforms.Compose(
+            [
+                transforms.RandomResizedCrop(size=self.input_shape[0]),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor()
+            ]
+        )
+        return data_transforms
+
+class TuneDataTransform(object):
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, sample):
+        x = self.transform(sample)
+        return x
     
 class SimCLRDataTransform(object):
     def __init__(self, transform):

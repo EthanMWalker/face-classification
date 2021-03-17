@@ -1,7 +1,7 @@
 import torch.nn as nn
 
-from resnet.Blocks import ResNetBlock
-from resnet.Tools import activation_func
+from SimCLR.Blocks import ResNetBlock
+from SimCLR.Tools import activation_func
 
 
 class ResNetLayer(nn.Module):

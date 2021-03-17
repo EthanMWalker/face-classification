@@ -12,8 +12,8 @@ from torchvision.transforms import transforms
 
 from SimCLR.Augment import TrainDataAugmentation, TuneDataAugmentation,\
   SimCLRDataTransform, TuneDataTransform
-from SimCLR.Models import Train, FineTune, Validate, SimCLR
-from SimCLR.resnet.Models import ResNetSimCLR
+from SimCLR.Makers import Train, FineTune, Validate, SimCLR
+from SimCLR.Models import ResNetSimCLR
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     'horses', 'ships', 'trucks'
   ]
 
-  matrix = confusion_matrix(actual, predicted, [0,1,2,3,4,5,6,7,8,9])
+  matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
 
   figure = plt.figure(figsize=(16,9))
   ax = figure.add_subplot(111)

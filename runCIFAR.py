@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
-def finetuneCIFAR():
+def test_finetune():
   # fine tuning transform
   transform = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize((.5,.5,.5),(.5,.5,.5))]
@@ -30,17 +30,18 @@ def finetuneCIFAR():
     transform=transform
   )
 
-
-  # make simclr with the pretrained model
-  simclr = SimCLR()
-  simclr.load_model('CIFAR10.tar')
+  # make fine tuning object
+  simclr = FineTune(
+    mlp_layers=3, batch_size=10,
+    blocks_sizes=[2**i for i in [5,6,7,8]],
+    blocks_layers=[2,2,2,2]
+  )
 
   # do the fine tuning
-  data = simclr.load_data(tuneset, s, input_shape)
-  model, losses = simclr.fine_tune(data, 'CIFAR10-tune.tar', n_epochs=10)
+  data = simclr.load_data(tuneset)
+  model, losses = simclr.fine_tune(data, 'chkpt/CIFAR10-tune-test.tar', n_epochs=10)
 
   return model, losses
-
 
 
 def trainCIFAR():
@@ -111,9 +112,10 @@ def end_to_end():
   # create the base model
   model = ResNetSimCLR(in_channels=3, n_classes=10, mlp_layers=2)
   simclr = SimCLR(model)
+  print(f'Our model has {simclr.trainer.num_params:,} parameters')
 
   results = simclr.full_model_maker(
-    train_data, tune_data, val_data, n_cycles=2, train_epochs=1, tune_epochs=1,
+    train_data, tune_data, val_data, n_cycles=2, train_epochs=50, tune_epochs=20,
     train_path='chkpt/train.tar', tune_path='chkpt/tune.tar'
   )
 
@@ -156,4 +158,3 @@ if __name__ == "__main__":
 
   plt.savefig('vis/confusion_matrix.png')
   plt.clf()
-

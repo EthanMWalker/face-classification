@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, dataloader
+from torch.utils.data import DataLoader
 
 from torchlars import LARS
 
@@ -47,7 +47,7 @@ class Train(BaseModel):
     )
     
   def return_model(self):
-    return self.model.resnet, self.model.projection_head.layers[0]
+    return self.model.resnet.state_dict(), self.model.projection_head.layers[0].state_dict()
   
   def train(self, dataloader, temperature, ckpt_path, n_epochs=90, 
           save_size=10):
@@ -55,7 +55,7 @@ class Train(BaseModel):
     # trainers
     criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
                                    self.device).to(self.device)
-    optimizer = LARS(torch.optim.SGD(self.model.parameters(), lr=.1))
+    optimizer = LARS(torch.optim.SGD(self.model.parameters(), lr=4))
 
     losses = []
 
@@ -107,7 +107,7 @@ class Train(BaseModel):
 
 class FineTune(BaseModel):
   def __init__(self, model=None, in_channels=3, n_classes=10,
-              batch_size=128, *args, **kwargs):
+              batch_size=30, *args, **kwargs):
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
     )
@@ -120,9 +120,8 @@ class FineTune(BaseModel):
     # trainers
     criterion = nn.CrossEntropyLoss().to(self.device)
     
-    # only optimize the end of the projection head
-    optimizer = torch.optim.Adam(
-      self.model.parameters()
+    optimizer = torch.optim.SGD(
+      self.model.parameters(), lr=.001, momentum=.9
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
       optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1
@@ -143,9 +142,6 @@ class FineTune(BaseModel):
         
           # Get representations and projections
           h, z = self.model(x)
-        
-          # normalize
-          zis = F.normalize(z, dim=1)
         
           loss = criterion(z, y)
           running_loss += loss.item()
@@ -230,7 +226,7 @@ class Validate(BaseModel):
 
 class SimCLR:
   def __init__(self, model=None, in_channels=3, n_classes=10, 
-              train_batch_size=1024, tune_batch_size=20, train_temp=.5):
+              train_batch_size=1024, tune_batch_size=10, train_temp=.5):
 
     if model is None:
       self.trainer = Train(
@@ -246,11 +242,11 @@ class SimCLR:
   def make_tuner(self, model):
     '''
     Parameters:
-      model (tuple(ResNet, nn.Linear)): the resnet and first layer of 
-        the projection head of for a simclr model
+      model (tuple(ResNet, nn.Linear)): the state dicts of the resnet
+        and first layer of the projection head of for a simclr model
     '''
-    resnet = model[0]
-    head = model[1]
+    resnet_dict = model[0]
+    head_dict = model[1]
     in_channels = self.trainer.model.in_channels
     n_classes = self.trainer.model.n_classes
 
@@ -258,15 +254,15 @@ class SimCLR:
       in_channels, n_classes, mlp_layers=3
     )
 
-    model.resnet.load_state_dict(resnet.state_dict())
-    model.projection_head.layers[0].load_state_dict(head.state_dict())
+    model.resnet.load_state_dict(resnet_dict)
+    model.projection_head.layers[0].load_state_dict(head_dict)
 
     self.tuner = FineTune(model, batch_size=self.tune_batch_size)
   
   def make_validator(self, model):
     '''
     Parameters:
-      model (ResNetSimCLR): a fill resnet with projection head
+      model (ResNetSimCLR): a full resnet with projection head
     '''
     self.validator = Validate(model, batch_size=self.tune_batch_size)
   

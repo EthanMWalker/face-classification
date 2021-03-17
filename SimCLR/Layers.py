@@ -49,7 +49,7 @@ class ResNetEncoder(nn.Module):
   I tried to base this on table 1 of the paper
   '''
 
-  def __init__(self, in_channels=3, blocks_sizes=[2**i for i in [5, 6, 7, 8]],
+  def __init__(self, in_channels=3, blocks_sizes=[2**i for i in [6, 7, 8 ,9]],
            blocks_layers=[4, 4, 4, 4], activation='relu', block=ResNetBlock,
            *args, **kwargs):
     super().__init__()
@@ -63,8 +63,8 @@ class ResNetEncoder(nn.Module):
         kernel_size=7, stride=2, padding=3, bias=False
       ),
       nn.BatchNorm2d(self.blocks_sizes[0]),
-      activation_func[activation],
-      nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+      nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+      activation_func[activation]
     )
 
     # organize the in and out sizes in the adjoining pairs
@@ -102,7 +102,7 @@ class ResNetDecoder(nn.Module):
   '''
   The decoder takes the output from the encoder and creates a
   final output
-  This uses an adaptive pool and a linear layer
+  This uses a linear layer
   '''
 
   def __init__(self, in_features, n_classes):

@@ -2,4 +2,6 @@
 data/
 SimCLR-2/
 SimCLR/TestData
+SimCLR/TuneData
+SimCLR/TrainData
 *.tar

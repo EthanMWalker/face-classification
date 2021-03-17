@@ -1,4 +1,11 @@
+####### Files ########
 *.csv
+*.tar
+*.tar.gz
+*.gz
+
+####### Dirs #########
 SimCLR-2/
 Data/
-*.tar
+data/
+SimCLR/TestData

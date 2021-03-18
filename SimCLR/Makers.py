@@ -49,7 +49,7 @@ class Train(BaseModel):
   def return_model(self):
     return self.model.resnet.state_dict(), self.model.projection_head.layers[0].state_dict()
   
-  def train(self, dataloader, temperature, ckpt_path, n_epochs=90, 
+  def train(self, dataloader, temperature, ckpt_path, n_epochs=91, 
           save_size=10):
     
     # trainers
@@ -226,7 +226,7 @@ class Validate(BaseModel):
 
 class SimCLR:
   def __init__(self, model=None, in_channels=3, n_classes=10, 
-              train_batch_size=1024, tune_batch_size=10, train_temp=.5):
+              train_batch_size=256, tune_batch_size=10, train_temp=.5):
 
     if model is None:
       self.trainer = Train(

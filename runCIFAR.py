@@ -17,7 +17,7 @@ from SimCLR.Models import ResNetSimCLR
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
+import numpy as np
 
 def test_finetune():
   # fine tuning transform
@@ -84,6 +84,7 @@ def validateCIFAR(modelpath):
 def end_to_end():
   s=1
   input_shape = (96,96,3)  
+  tune_per = .1
 
   # set up training data
   train_trans = TrainDataAugmentation(s, input_shape)
@@ -94,6 +95,8 @@ def end_to_end():
     transform=SimCLRDataTransform(train_aug)
   )
 
+  train_n = len(train_data)
+
   # set up tuning data
   tune_trans = TuneDataAugmentation(s, input_shape)
   tune_aug = tune_trans.augment()
@@ -102,6 +105,13 @@ def end_to_end():
     root='Data', train=True, download=True, 
     transform=TuneDataTransform(tune_aug)
   )
+
+  tune_indices = np.random.choice(train_n, int(train_n*tune_per), replace=False)
+  train_indices = [i for i in range(train_n) if i not in tune_indices]
+  tune_data = [tune_data[i] for i in tune_indices]
+  train_data = [train_data[i] for i in train_indices]
+  print("Training Size:", len(train_data))
+  print("Tuning Size:", len(tune_data))
 
   # set up val data
   val_data = tv.datasets.CIFAR10(

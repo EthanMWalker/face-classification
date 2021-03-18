@@ -52,6 +52,8 @@ class Train(BaseModel):
   def train(self, dataloader, temperature, ckpt_path, n_epochs=90, 
           save_size=10):
     
+    self.model = self.model.to(self.device)
+    
     # trainers
     criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
                                    self.device).to(self.device)

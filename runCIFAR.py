@@ -125,7 +125,7 @@ def end_to_end():
   print(f'Our model has {simclr.trainer.num_params:,} parameters')
 
   results = simclr.full_model_maker(
-    train_data, tune_data, val_data, n_cycles=2, train_epochs=50, tune_epochs=20,
+    train_data, tune_data, val_data, n_cycles=1, train_epochs=181, tune_epochs=60,
     train_path='chkpt/train.tar', tune_path='chkpt/tune.tar'
   )
 

@@ -50,7 +50,7 @@ class ResNetBlock(nn.Module):
       nn.Conv2d(self.in_channels, self.mid_channels, kernel_size=1, bias=False),
       nn.BatchNorm2d(self.mid_channels),
       self.activate,
-      nn.Conv2d(self.mid_channels, self.mid_channels, kernel_size=3, bias=False),
+      nn.Conv2d(self.mid_channels, self.mid_channels, kernel_size=3, bias=False,padding=1),
       nn.BatchNorm2d(self.mid_channels),
       self.activate,
       nn.Conv2d(self.mid_channels, self.out_channels, kernel_size=1,  bias=False),
@@ -63,7 +63,7 @@ class ResNetBlock(nn.Module):
       self.skip = nn.Sequential(
         nn.Conv2d(
           self.in_channels, self.out_channels,
-          kernel_size=1, stride=self.resampling, bias=False
+          kernel_size=3,  bias=False, padding=1
         ),
         nn.BatchNorm2d(self.out_channels)
       )
@@ -74,12 +74,15 @@ class ResNetBlock(nn.Module):
 
     # define the residual
     if self.should_apply_skip:
+      print("skip",x.shape)
       residual = self.skip(x)
     else:
+      print("not skip")
       residual = x
 
     # apply the blocks
     x = self.blocks(x)
+    print("r",x.shape,residual.shape)
     # add the skip
     x += residual
     return x

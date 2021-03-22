@@ -74,15 +74,12 @@ class ResNetBlock(nn.Module):
 
     # define the residual
     if self.should_apply_skip:
-      print("skip",x.shape)
       residual = self.skip(x)
     else:
-      print("not skip")
       residual = x
 
     # apply the blocks
     x = self.blocks(x)
-    print("r",x.shape,residual.shape)
     # add the skip
     x += residual
     return x

@@ -40,7 +40,7 @@ class BaseModel:
 class Train(BaseModel):
 
   def __init__(self, model=None, in_channels=3, n_classes=10,
-              batch_size=128, *args, **kwargs):
+              batch_size=64, *args, **kwargs):
 
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
@@ -226,7 +226,7 @@ class Validate(BaseModel):
 
 class SimCLR:
   def __init__(self, model=None, in_channels=3, n_classes=10, 
-              train_batch_size=1024, tune_batch_size=10, train_temp=.5):
+              train_batch_size=64, tune_batch_size=10, train_temp=.5):
 
     if model is None:
       self.trainer = Train(

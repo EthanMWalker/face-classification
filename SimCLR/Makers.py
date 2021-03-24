@@ -100,7 +100,7 @@ class Train(BaseModel):
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,},ckpt_path)
+            'loss': losses,},ckpt_path)
     
 
     return self.return_model(), losses
@@ -301,12 +301,12 @@ class SimCLR:
       model, losses = self.tune(tune_data, tune_epochs, tune_path)
       tune_loss.extend(losses)
 
-      self.make_validator(self.tuner.model)
-      acc, actual, predicted = self.validate(val_data)
-      accuracy.append(acc)
-    
+#      self.make_validator(self.tuner.model)
+#      acc, actual, predicted = self.validate(val_data)
+#      accuracy.append(acc)
+#    
     results = (
-      self.tuner.model, train_loss, tune_loss,
-      accuracy, actual, predicted
+      self.tuner.model, train_loss, tune_loss#,
+#      accuracy, actual, predicted
     )
     return results

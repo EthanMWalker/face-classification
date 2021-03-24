@@ -10,6 +10,8 @@ from SimCLR.Models import ResNetSimCLR
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+  
+import pickle 
 
 def train_race_fr():
   s=1
@@ -23,7 +25,7 @@ def train_race_fr():
     root='Data/unlabeled', transform=SimCLRDataTransform(train_aug)
   )
 
-  # set up tuning data
+  # set up tuning and validation data
   tune_trans = TuneDataAugmentation(s, input_shape)
   tune_aug = tune_trans.augment()
 
@@ -34,12 +36,12 @@ def train_race_fr():
   tune_data, val_data = random_split(tune_val_data, [7112, 16595])
 
   # create the base model
-  model = ResNetSimCLR(in_channels=3, n_classes=5, mlp_layers=2)
+  model = ResNetSimCLR(in_channels=3, n_classes=4, mlp_layers=2)
   simclr = SimCLR(model)
   print(f'Our model has {simclr.trainer.num_params:,} parameters')
 
   results = simclr.full_model_maker(
-    train_data, tune_data, val_data, n_cycles=1, train_epochs=101, tune_epochs=20,
+    train_data, tune_data, val_data, n_cycles=1, train_epochs=51, tune_epochs=20,
     train_path='chkpt/race_train.tar', tune_path='chkpt/race_tune.tar'
   )
 
@@ -48,7 +50,9 @@ def train_race_fr():
 
 if __name__ == "__main__":
 
-  model, train_loss, tune_loss, accuracy, actual, predicted = end_to_end()
+  model, train_loss, tune_loss, accuracy, actual, predicted = train_race_fr()
+
+  # pickle everything 
 
   plt.plot(train_loss)
   plt.title('train loss')
@@ -70,7 +74,7 @@ if __name__ == "__main__":
     'class names'
   ]
 
-  matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
+  matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3])
 
   figure = plt.figure(figsize=(16,9))
   ax = figure.add_subplot(111)

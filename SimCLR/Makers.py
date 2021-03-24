@@ -26,7 +26,7 @@ class BaseModel:
     
   @property
   def device(self):
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
   
   def load_model(self, path):
     self.model.load_state_dict(torch.load(path)['model_state_dict'])
@@ -56,6 +56,7 @@ class Train(BaseModel):
     criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
                                    self.device).to(self.device)
     optimizer = LARS(torch.optim.SGD(self.model.parameters(), lr=4))
+    # optimizer = optimizer.to(self.device)
 
     losses = []
 
@@ -226,7 +227,7 @@ class Validate(BaseModel):
 
 class SimCLR:
   def __init__(self, model=None, in_channels=3, n_classes=10, 
-              train_batch_size=64, tune_batch_size=10, train_temp=.5):
+              train_batch_size=128, tune_batch_size=10, train_temp=.5):
 
     if model is None:
       self.trainer = Train(

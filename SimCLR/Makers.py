@@ -11,7 +11,7 @@ from SimCLR.Loss import NTCrossEntropyLoss
 from tqdm import tqdm
 
 class BaseModel:
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=128, *args, **kwargs):
     if model is None:
       # define the model
@@ -26,7 +26,7 @@ class BaseModel:
     
   @property
   def device(self):
-    return torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   
   def load_model(self, path):
     self.model.load_state_dict(torch.load(path)['model_state_dict'])
@@ -39,7 +39,7 @@ class BaseModel:
 
 class Train(BaseModel):
 
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=64, *args, **kwargs):
 
     super().__init__(
@@ -101,13 +101,13 @@ class Train(BaseModel):
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'loss': losses,},ckpt_path)
+            'loss': losses,},ckpt_path + f'{epoch}')
     
 
     return self.return_model(), losses
 
 class FineTune(BaseModel):
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=30, *args, **kwargs):
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
@@ -137,7 +137,7 @@ class FineTune(BaseModel):
         for data in dataloader:
           i += 1
           optimizer.zero_grad()
-        
+
           x = data[0].to(self.device)
           y = data[1].to(self.device)
         
@@ -180,7 +180,7 @@ class Validate(BaseModel):
   Takes a trained ResNetSimCLR model and computes accuracy 
   '''
   
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=128, *args, **kwargs):
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
@@ -226,8 +226,8 @@ class Validate(BaseModel):
 
 
 class SimCLR:
-  def __init__(self, model=None, in_channels=3, n_classes=10, 
-              train_batch_size=128, tune_batch_size=10, train_temp=.5):
+  def __init__(self, model=None, in_channels=3, n_classes=5, 
+              train_batch_size=80, tune_batch_size=10, train_temp=.5):
 
     if model is None:
       self.trainer = Train(
@@ -239,6 +239,7 @@ class SimCLR:
     self.tune_batch_size = tune_batch_size
     self.train_batch_size = train_batch_size
     self.train_temp = train_temp
+    self.n_classes = n_classes
   
   def make_tuner(self, model):
     '''
@@ -252,7 +253,7 @@ class SimCLR:
     n_classes = self.trainer.model.n_classes
 
     model = ResNetSimCLR(
-      in_channels, n_classes, mlp_layers=3
+      in_channels, self.n_classes, mlp_layers=3, blocks_layers=[3,3,3,3]
     )
 
     model.resnet.load_state_dict(resnet_dict)
@@ -307,7 +308,7 @@ class SimCLR:
       accuracy.append(acc)
 #    
     results = (
-      self.tuner.model, train_loss, tune_loss#,
-#      accuracy, actual, predicted
+      self.tuner.model, train_loss, tune_loss,
+     accuracy, actual, predicted
     )
     return results

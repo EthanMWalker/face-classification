@@ -137,7 +137,6 @@ class FineTune(BaseModel):
         for data in dataloader:
           i += 1
           optimizer.zero_grad()
-
           x = data[0].to(self.device)
           y = data[1].to(self.device)
         

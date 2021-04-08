@@ -148,3 +148,4 @@ if __name__ == "__main__":
 
   plt.savefig('vis/race_fr_confusion_matrix.png')
   plt.clf()
+  

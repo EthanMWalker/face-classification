@@ -37,17 +37,15 @@ def train_race_fr():
   tune_data, val_data = random_split(tune_val_data, [7112, 16595])
 
   # create the base model
-  saved = torch.load('chkpt/race_train.tar')
-  trained_model = model = ResNetSimCLR(
-    in_channels=3, n_classes=4, mlp_layers=2, blocks_layers=[3,3,3,3]
+  model = ResNetSimCLR(
+    in_channels=3, n_classes=5, mlp_layers=2, blocks_layers=[3,4,6,3]
   )
-  trained_model.load_state_dict(saved['model_state_dict'])
 
-  simclr = SimCLR(trained_model)
+  simclr = SimCLR(model)
   print(f'Our model has {simclr.trainer.num_params:,} parameters')
 
   results = simclr.full_model_maker(
-    train_data, tune_data, val_data, n_cycles=1, train_epochs=21, tune_epochs=20,
+    train_data, tune_data, val_data, n_cycles=1, train_epochs=71, tune_epochs=31,
     train_path='chkpt/race_train.tar', tune_path='chkpt/race_tune.tar'
   )
 

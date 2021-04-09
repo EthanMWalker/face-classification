@@ -252,7 +252,7 @@ class SimCLR:
     n_classes = self.trainer.model.n_classes
 
     model = ResNetSimCLR(
-      in_channels, self.n_classes, mlp_layers=3, blocks_layers=[3,3,3,3]
+      in_channels, self.n_classes, mlp_layers=3, blocks_layers=[3,4,6,3]
     )
 
     model.resnet.load_state_dict(resnet_dict)

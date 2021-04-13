@@ -49,3 +49,45 @@ class NTCrossEntropyLoss(nn.Module):
 
     loss = self.criterion(logits, labels)
     return loss / dbl_batch
+
+
+class RingLoss(nn.Module):
+  '''
+  Ring loss based on the paper 
+    Ring loss: Convex Feature Normalization for Face Recognition
+    https://arxiv.org/pdf/1803.00130.pdf
+
+  this is to be used in conjunction with another loss, it encourages the
+  model to place logits within a "ring"
+
+  it requires its own optimizer as well
+  '''
+
+  def __init__(self, loss_weight):
+    super().__init__()
+    self.weight = loss_weight
+    self.radius = nn.Parameter(torch.Tensor(1))
+
+  
+  def forward(self, x):
+
+    # if the radius is negative then set it to the mean
+    if self.radius.data.item() < 0:
+      self.radius.data.fill_(x.mean().item())
+    
+    # compute loss
+    x = torch.linalg.norm(x,ord=2,dim=1)
+    x = x - self.radius
+    x = torch.pow(torch.abs(x), 2).mean()
+    x = x/2
+    loss = x * self.loss_weight
+
+    return loss
+
+class AngularSoftmax(nn.Module):
+  '''
+  Angular Softmax loss based on the paper
+    SphereFace: Deep Hypersphere Embedding for Face Recognition
+    https://arxiv.org/pdf/1704.08063.pdf
+
+  '''

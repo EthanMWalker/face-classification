@@ -73,9 +73,9 @@ def finish_the_job():
 
   tune_data, val_data = random_split(tune_val_data, [7112, 16595])
 
-  saved = torch.load('chkpt/race_train.tar')
+  saved = torch.load('chkpt/race_train.tar70')
   trained_model = model = ResNetSimCLR(
-    in_channels=3, n_classes=4, mlp_layers=2, blocks_layers=[3,3,3,3]
+    in_channels=3, n_classes=5, mlp_layers=2, blocks_layers=[3,4,6,3]
   )
   trained_model.load_state_dict(saved['model_state_dict'])
 
@@ -99,13 +99,13 @@ def finish_the_job():
 
 if __name__ == "__main__":
 
-  model, train_loss, tune_loss, accuracy, actual, predicted = train_race_fr()
-  # model, tune_losses, acc, actual, predicted = finish_the_job()
+  # model, train_loss, tune_loss, accuracy, actual, predicted = train_race_fr()
+  model, tune_loss, accuracy, actual, predicted = finish_the_job()
 
   # pickle everything 
-  with open('chkpt/race_fr.pickle', 'wb') as out_file:
+  with open('chkpt/race_fr_again.pickle', 'wb') as out_file:
     pickle.dump(
-      (train_loss, tune_loss, accuracy, actual, predicted),
+      (tune_loss, accuracy, actual, predicted),
       out_file
     )
   
@@ -113,10 +113,10 @@ if __name__ == "__main__":
     {'model_state_dict': model.state_dict()}, 'chkpt/final_race_model.tar'
   )
 
-  plt.plot(train_loss)
-  plt.title('train loss')
-  plt.savefig('vis/race_fr_train_losses.png')
-  plt.clf()
+  # plt.plot(train_loss)
+  # plt.title('train loss')
+  # plt.savefig('vis/race_fr_train_losses.png')
+  # plt.clf()
 
   plt.plot(tune_loss)
   plt.title('tune losses')

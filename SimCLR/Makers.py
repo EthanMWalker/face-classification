@@ -121,8 +121,8 @@ class FineTune(BaseModel):
     # trainers
     criterion = nn.CrossEntropyLoss().to(self.device)
     
-    optimizer = torch.optim.SGD(
-      self.model.parameters(), lr=.001, momentum=.9
+    optimizer = torch.optim.Adam(
+      self.model.parameters(), lr=.0001
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
       optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1

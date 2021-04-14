@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 class NTCrossEntropyLoss(nn.Module):
@@ -76,11 +77,11 @@ class RingLoss(nn.Module):
       self.radius.data.fill_(x.mean().item())
     
     # compute loss
-    x = torch.linalg.norm(x,ord=2,dim=1)
+    x = torch.linalg.norm(x, ord=2, dim=1)
     x = x - self.radius
     x = torch.pow(torch.abs(x), 2).mean()
     x = x/2
-    loss = x * self.loss_weight
+    loss = x * self.weight
 
     return loss
 
@@ -90,4 +91,37 @@ class AngularSoftmax(nn.Module):
     SphereFace: Deep Hypersphere Embedding for Face Recognition
     https://arxiv.org/pdf/1704.08063.pdf
 
+  This is to be used in conjunction with another loss function
+  it requires its own optimizer
   '''
+  
+  def __init__(self, num_features, m=0.4, eps=1e-10):
+    super().__init__()
+    self.m = m
+    self.eps = eps
+    self.W = nn.Linear(num_features, num_features, bias=False)
+  
+  def forward(self, x, y):
+
+    for param in self.W.parameters():
+      param = F.normalize(param, p=2, dim=1)
+
+    norms = torch.linalg.norm(x, ord=2, dim=1)
+    x = F.normalize(x, p=2, dim=1)
+
+    prods = self.W(x)
+
+    cos_theta = torch.diag(prods.transpose(0,1)[y])
+    cos_theta = torch.clamp(cos_theta, -1+self.eps, 1-self.eps)
+    numer_theta = torch.acos(cos_theta)
+    numer = norms * torch.cos(self.m * numer_theta)
+
+    denom = [
+      norms[i]*torch.cat([prods[i,:yi],prods[i,yi+1:]]) for i,yi in enumerate(y)
+    ]
+    denom = torch.stack(denom)
+    denom = torch.exp(numer) + torch.sum(torch.exp(denom), dim=1)
+
+    loss = numer - torch.log(denom)
+    return loss
+    

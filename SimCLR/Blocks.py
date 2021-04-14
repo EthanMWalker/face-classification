@@ -13,7 +13,7 @@ class ResNetBlock(nn.Module):
       I would do better if I had a start middle and end block
   '''
 
-  def __init__(self, in_channels, mid_channels,out_channels,
+  def __init__(self, in_channels, mid_channels, out_channels,
            resampling=1, conv=None, activation='relu',
            use_batch=True, use_dropout=True):
     super().__init__()

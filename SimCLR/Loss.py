@@ -95,7 +95,7 @@ class AngularSoftmax(nn.Module):
   it requires its own optimizer
   '''
   
-  def __init__(self, num_features, m=0.4, eps=1e-10):
+  def __init__(self, num_features, m=2, eps=1e-5):
     super().__init__()
     self.m = m
     self.eps = eps
@@ -123,5 +123,5 @@ class AngularSoftmax(nn.Module):
     denom = torch.exp(numer) + torch.sum(torch.exp(denom), dim=1)
 
     loss = numer - torch.log(denom)
-    return loss
+    return -torch.mean(loss)
     

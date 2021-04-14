@@ -3,6 +3,7 @@ import torch.nn as nn
 from SimCLR.Layers import ResNetEncoder, ResNetDecoder
 from SimCLR.Components import Conv2dPadded, ProjectionHead
 from SimCLR.Tools import initialization
+from SimCLR.Loss import AngularSoftmax
 import torch.nn.functional as F
 
 class ResNet(nn.Module):
@@ -33,6 +34,20 @@ class ResNet(nn.Module):
     x = self.encoder(x)
     x = self.decoder(x)
     return x
+
+class ASoftmaxResNet(nn.Module):
+
+  def __init__(self, in_dim, num_classes, *args, **kwargs):
+    super().__init__()
+
+    self.resnet = ResNet(in_dim, num_classes, *args, **kwargs)
+    self.loss = AngularSoftmax(num_classes)
+
+  def forward(self,x,y):
+    out = self.resnet(x)
+    loss = self.loss(out,y)
+    return loss, out
+
 
 class ResNetSimCLR(nn.Module):
     

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from SimCLR.Models import ResNet
 from SimCLR.Loss import AngularSoftmax
 
@@ -25,16 +26,16 @@ def get_data(batch_size=128):
   )
 
   trainset = torchvision.datasets.CIFAR10(
-    root='data', train=True, download=True, transform=transform
+    root='Data', train=True, download=True, transform=transform
   )
-  trainloader = torch.utils.DataLoader(
+  trainloader = torch.utils.data.DataLoader(
     trainset, batch_size=batch_size, shuffle=True, num_workers=2
   )
 
   testset = torchvision.datasets.CIFAR10(
-    root='data', train=False, download=True, transform=transform
+    root='Data', train=False, download=True, transform=transform
   )
-  testloader = torch.utils.DataLoader(
+  testloader = torch.utils.data.DataLoader(
     trainset, batch_size=batch_size, shuffle=True, num_workers=2
   )
 
@@ -55,9 +56,7 @@ def train(model, crit, opt, trainloader, n_epochs, filename):
 
         out = model(x)
 
-        logits = crit[0](x,out)
-
-        loss = crit[1](logits, y)
+        loss = crit(out,y)
 
         opt[0].zero_grad()
         opt[1].zero_grad()
@@ -70,7 +69,7 @@ def train(model, crit, opt, trainloader, n_epochs, filename):
         torch.save(
           {
             'model':model.state_dict(),
-            'a_sft': crit[0].state_dict(),
+            'a_sft': crit.state_dict(),
             'opt1': opt[0].state_dict(),
             'opt2': opt[1].state_dict()
           },
@@ -114,16 +113,15 @@ def test(model, testloader):
 if __name__ == '__main__':
 
   model = ResNet(3, 10, blocks_layers=[3,4,6,3]).to(device)
-  crit1 = AngularSoftmax(10).to(device)
-  crit2 = nn.CrossEntropyLoss()
+  crit = AngularSoftmax(10).to(device)
 
-  opt1 = torch.optim.SGD(crit1.parameters(), lr=1e-3)
+  opt1 = torch.optim.SGD(crit.parameters(), lr=1e-3)
   opt2 = torch.optim.Adam(model.parameters(), lr=1e-4)
 
   trainloader, testloader = get_data()
 
   model, losses = train(
-    model, (crit1,crit2), (opt1,opt2), 
+    model, crit, (opt1,opt2), 
     trainloader, 50, 'chkpt/asft_test.tar'
   )
 

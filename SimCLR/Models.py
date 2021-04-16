@@ -3,7 +3,7 @@ import torch.nn as nn
 from SimCLR.Layers import ResNetEncoder, ResNetDecoder
 from SimCLR.Components import Conv2dPadded, ProjectionHead
 from SimCLR.Tools import initialization
-from SimCLR.Loss import AngularSoftmax
+from SimCLR.Loss import AngularSoftmax, RingLoss
 import torch.nn.functional as F
 
 class ResNet(nn.Module):
@@ -37,16 +37,31 @@ class ResNet(nn.Module):
 
 class ASoftmaxResNet(nn.Module):
 
-  def __init__(self, in_dim, num_classes, *args, **kwargs):
+  def __init__(self, in_dim, mid_dim, n_classes, *args, **kwargs):
     super().__init__()
 
-    self.resnet = ResNet(in_dim, num_classes, *args, **kwargs)
-    self.loss = AngularSoftmax(num_classes)
+    self.resnet = ResNet(in_dim, mid_dim, *args, **kwargs)
+    self.loss = AngularSoftmax(mid_dim, n_classes)
 
-  def forward(self,x,y):
+  def forward(self,x,y,rep_only=False):
     out = self.resnet(x)
-    loss = self.loss(out,y)
-    return loss, out
+    loss = self.loss(out,y, rep_only)
+    return out, loss
+
+class RingLossResNet(nn.Module):
+
+  def __init__(self, in_dim, n_classes, loss_weight, *args, **kwargs):
+    super().__init__()
+
+    self.resnet = ResNet(in_dim, n_classes, *args, **kwargs)
+    self.loss = RingLoss(loss_weight)
+
+  def forward(self, x, rep_only=False):
+    out = self.resnet(x)
+    if rep_only:
+      return out
+    loss = self.loss(x)
+    return out, loss
 
 
 class ResNetSimCLR(nn.Module):

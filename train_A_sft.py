@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from SimCLR.Models import ResNet
+from SimCLR.Models import ResNet, ASoftmaxResNet
 from SimCLR.Loss import AngularSoftmax
 
 from tqdm import tqdm
+import pickle
 
 import torch
 import torch.nn as nn
@@ -42,48 +43,46 @@ def get_data(batch_size=128):
   return trainloader, testloader
 
 
-def train(model, crit, opt, trainloader, n_epochs, filename):
+def train(model, opt, sch, trainloader, n_epochs, filename):
 
   losses = []
 
   with tqdm(total=len(trainloader)*n_epochs) as prog:
     for i in range(n_epochs):
       running_loss = 0
-      for x,y in trainloader:
+      for k,(x,y) in enumerate(trainloader):
 
         x = x.to(device)
         y = y.to(device)
 
-        out = model(x)
+        out, loss = model(x,y)
 
-        loss = crit(out,y)
-
-        opt[0].zero_grad()
-        opt[1].zero_grad()
-
+        opt.zero_grad()
         loss.backward()
+        opt.step()
 
-        opt[0].step()
-        opt[1].step()
+        running_loss += loss.item()
 
+        prog.set_description(f'epoch: {i} | Loss: {loss.item():.3f}')
+        prog.update()
+
+        if k % 10 == 9:
+          losses.append(running_loss/10)
+          running_loss = 0
+
+      if i > 20:
+        sch.step()
+      
+      if i % 10 == 0:
         torch.save(
           {
             'model':model.state_dict(),
-            'a_sft': crit.state_dict(),
-            'opt1': opt[0].state_dict(),
-            'opt2': opt[1].state_dict()
+            'opt': opt.state_dict(),
+            'epoch': i
           },
           filename
         )
 
-        running_loss += loss.item()
-
-        prog.set_description(f'epoch: {i}. Loss: {loss.item()}')
-        prog.update()
-
-        if i % 400 == 399:
-          losses.append(running_loss/400)
-  
   return model, losses
 
 def test(model, testloader):
@@ -93,36 +92,43 @@ def test(model, testloader):
 
   actual = []
   predicted = []
-  with torch.nograd():
-    for x,y in testloader:
-      x = x.to(device)
-      y = y.to(device)
+  embeddings = []
 
-      out = model(x)
-      preds = torch.max(out.data, 1)
+  with tqdm(total=len(testloader)) as prog:
+    prog.set_description('Validating')
+    with torch.no_grad():
+      for x,y in testloader:
+        x = x.to(device)
+        y = y.to(device)
 
-      total += y.size(0)
-      correct += (preds == y).sum().item()
+        embed, out = model(x, y, rep_only=True)
+        preds = out.argmax(dim=1)
 
-      actual.extend(y.detach().cpu())
-      predicted.extend(preds.detach().cpu())
-  
-  return correct/total, actual, predicted
+        total += y.size(0)
+        correct += sum(preds == y)
+
+        actual.extend(y.detach().cpu())
+        predicted.extend(preds.detach().cpu())
+        embeddings.extend(embed.detach().cpu())
+
+        prog.set_description(f'Validating | accuracy: {correct/total:.3f}')
+        prog.update()
+    
+  return correct/total, actual, predicted, embeddings
 
 
 if __name__ == '__main__':
-
-  model = ResNet(3, 10, blocks_layers=[3,4,6,3]).to(device)
-  crit = AngularSoftmax(10).to(device)
-
-  opt1 = torch.optim.SGD(crit.parameters(), lr=1e-3)
-  opt2 = torch.optim.Adam(model.parameters(), lr=1e-4)
-
   trainloader, testloader = get_data()
 
+  model = ASoftmaxResNet(3, 3, 10, blocks_layers=[3,4,6,3]).to(device)
+  opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+  sch = torch.optim.lr_scheduler.CosineAnnealingLR(
+    opt, len(trainloader)
+  )
+
   model, losses = train(
-    model, crit, (opt1,opt2), 
-    trainloader, 50, 'chkpt/asft_test.tar'
+    model, opt, sch,
+    trainloader, 30, 'chkpt/asft_test.tar'
   )
 
   plt.plot(losses)
@@ -130,7 +136,7 @@ if __name__ == '__main__':
   plt.savefig('vis/asft_cifar_losses.png')
   plt.clf()
 
-  accuracy, actual, predicted = test(model, testloader)
+  accuracy, actual, predicted, embeddings = test(model, testloader)
 
   classes = [
     'plane', 'car', 'bird', 'cat', 'deer', 'dog',
@@ -139,7 +145,7 @@ if __name__ == '__main__':
 
   matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
 
-  figure = plt.figure(figsize=(16,9))
+  figure = plt.figure(figsize=(9,9))
   ax = figure.add_subplot(111)
   disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
   disp.plot(ax=ax)
@@ -147,6 +153,9 @@ if __name__ == '__main__':
   plt.savefig('vis/asft_cifar_confusion_matrix.png')
   plt.clf()
 
+
+  with open('chkpt/asft_embds.pickle', 'wb') as out_file:
+    pickle.dump(embeddings, out_file)
 
 
 

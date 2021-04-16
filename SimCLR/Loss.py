@@ -95,33 +95,37 @@ class AngularSoftmax(nn.Module):
   it requires its own optimizer
   '''
   
-  def __init__(self, num_features, m=2, eps=1e-5):
+  def __init__(self, in_dim, out_dim, m=1.35, eps=1e-10):
     super().__init__()
     self.m = m
     self.eps = eps
-    self.W = nn.Linear(num_features, num_features, bias=False)
+    self.s = 64.0
+    self.W = nn.Linear(in_dim, out_dim, bias=False)
   
-  def forward(self, x, y):
+  def forward(self, x, y, repr=False):
 
     for param in self.W.parameters():
       param = F.normalize(param, p=2, dim=1)
 
-    norms = torch.linalg.norm(x, ord=2, dim=1)
+    # norms = torch.linalg.norm(x, ord=2, dim=1)
     x = F.normalize(x, p=2, dim=1)
 
     prods = self.W(x)
+    if repr:
+      return prods
 
     cos_theta = torch.diag(prods.transpose(0,1)[y])
     cos_theta = torch.clamp(cos_theta, -1+self.eps, 1-self.eps)
     numer_theta = torch.acos(cos_theta)
-    numer = norms * torch.cos(self.m * numer_theta)
+    numer = self.s * torch.cos(self.m * numer_theta)
 
     denom = [
-      norms[i]*torch.cat([prods[i,:yi],prods[i,yi+1:]]) for i,yi in enumerate(y)
+      self.s*torch.cat([prods[i,:yi],prods[i,yi+1:]]) for i,yi in enumerate(y)
     ]
     denom = torch.stack(denom)
     denom = torch.exp(numer) + torch.sum(torch.exp(denom), dim=1)
 
     loss = numer - torch.log(denom)
+
     return -torch.mean(loss)
     

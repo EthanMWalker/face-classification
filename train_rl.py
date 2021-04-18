@@ -44,7 +44,7 @@ def get_data(batch_size=256):
 
 
 
-def get_face_data(batch_size=256,train_set='Male'):
+def get_face_data(batch_size=256,base_folder='GenderDatasets',train_set='Percents/Male_0.66'):
   transform = transforms.Compose(
     [
       transforms.ToTensor(), 
@@ -53,14 +53,14 @@ def get_face_data(batch_size=256,train_set='Male'):
   )
 
   trainset = torchvision.datasets.ImageFolder(
-    root=f'Datasets/{train_set}', transform=transform
+    root=f'{base_folder}/{train_set}', transform=transform
   )
   trainloader = torch.utils.data.DataLoader(
     trainset, batch_size=batch_size, shuffle=True, num_workers=2
   )
 
   testset = torchvision.datasets.ImageFolder(
-    root='Datasets/Test', transform=transform
+    root=f'{base_folder}/Test', transform=transform
   )
   testloader = torch.utils.data.DataLoader(
     trainset, batch_size=batch_size, shuffle=True, num_workers=2
@@ -145,7 +145,7 @@ def test(model, testloader, idx_to_class):
         for i in range(N):
           class_correct[i] += (correct_classes == i).sum()
           class_counts[i] += (class_y == i).sum()
-
+        print(correct_classes, class_y)
         actual.extend(y.detach().cpu())
 
         predicted.extend(preds.detach().cpu())
@@ -158,7 +158,7 @@ def test(model, testloader, idx_to_class):
 
 
 if __name__ == '__main__':
-  trainloader, testloader, idx_to_class = get_face_data(train_set='Female')
+  trainloader, testloader, idx_to_class = get_face_data(base_folder='GenderDatasets',train_set='Percents/Male_0.66')
   
   N = 2 # Number of genders or races
   n_classes = len(idx_to_class)
@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
   model, losses = train(
     model, opt, crit, sch,
-    trainloader, 3, 'chkpt/faces_female.tar'
+    trainloader, 5, 'chkpt/faces_female.tar'
   )
 
   plt.plot(losses)
@@ -179,16 +179,28 @@ if __name__ == '__main__':
   plt.savefig('vis/faces_female_losses.png')
   plt.clf()
 
-  print('\nCalculating accuracy')
   accuracy, class_accuracy, class_counts, actual, predicted = test(model, testloader, idx_to_class)
   
-  
-  print('\nCalculating Metrics')
   print( accuracy, class_accuracy, class_counts)
   M = [[class_accuracy[0], class_counts[0]],[class_counts[1] ,class_accuracy[1]]] 
-  plt.matshow(M)
-  plt.title("Confusion Matrix")
-  plt.savefig('vis/faces_female_metrics.png')
+  
+  fig = plt.figure()
+  ax = plt.gca()
+
+  im = ax.matshow(M, cmap=plt.cm.Blues)
+  fig.colorbar(im)
+
+  for i in range(N):
+      for j in range(N):
+          ax.text(x=i,y=j,s=M[i][j], va='center',ha='center')
+  ax.set_xticks(np.arange(N))
+  ax.set_yticks(np.arange(N))
+  ax.set_xticklabels(['Male','Female'])
+  ax.set_yticklabels(['Correct','Incorrect'])
+  plt.title('Confusion Matrix')
+  plt.ylabel('Predicted')
+  plt.xlabel('Actual')
+  plt.savefig('vis/faces_female_confusion.png')
   plt.clf()
 
 

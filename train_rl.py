@@ -177,7 +177,7 @@ def test(model, testloader):
 def test_removed(model, missingloader):
   incorrect = 0
   total = 0
-  labeled_threshold = .1
+  labeled_threshold = .05
 
   with tqdm(total=len(testloader)) as prog:
     prog.set_description('Validating')
@@ -191,6 +191,7 @@ def test_removed(model, missingloader):
         max_values = out.max(dim=1)
         labeled = max_values[0] >= labeled_threshold
         labeled_idx = max_values[1][labeled]
+        print(max_values)
         
         if len(labeled_idx):
           incorrect += 1
@@ -202,98 +203,101 @@ def test_removed(model, missingloader):
 if __name__ == '__main__':
   
   classes = ['Male','Female']
-  save_prefix = 'male66'
   classification = 'gender'
   removed_path = 'GenderDatasets'
-  trainloader, testloader, idx_to_label = get_face_data('GenderDatasets/Percents', 'Male66')
-
   N = len(classes)
-  n_classes = len(idx_to_label)
 
-  model = RingLossResNet(3, n_classes, .01, blocks_layers=[3,4,6,3]).to(device)
-  crit = nn.CrossEntropyLoss()
-  opt = torch.optim.Adam(model.parameters(), lr=1e-4)
-  sch = torch.optim.lr_scheduler.CosineAnnealingLR(
-    opt, len(trainloader)
-  )
+  for run in ['Female50']:#, 'Male60', 'Male70', 'Male80', 'Male90']:
   
-  # train model
-  model, losses = train(
-    model, opt, crit, sch,
-    trainloader, 1, f'chkpt/{save_prefix}.tar'
-  )
+    trainloader, testloader, idx_to_label = get_face_data('GenderDatasets/Percents', run)
+    n_classes = len(idx_to_label)
 
-  plt.plot(losses)
-  plt.title('loss')
-  plt.savefig(f'vis/{save_prefix}_losses.png')
-  plt.clf()
 
-  # test model on datapoints in the training set
-  accuracy, actual, predicted = test(model, testloader)
+    run = 'Female50_4'
+    model = RingLossResNet(3, n_classes, .01, blocks_layers=[3,4,6,3]).to(device)
+    crit = nn.CrossEntropyLoss()
+    opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+    sch = torch.optim.lr_scheduler.CosineAnnealingLR(
+      opt, len(trainloader)
+    )
   
-  # plot accuracies
-  correct_counts, class_counts = get_results(actual, predicted, idx_to_label, classification)
-  class_accuracy = [i/j for i,j in zip(correct_counts, class_counts)]
+    # train model
+    model, losses = train(
+      model, opt, crit, sch,
+      trainloader, 35, f'chkpt/{run}.tar'
+    )
+
+    plt.plot(losses)
+    plt.title('loss')
+    plt.savefig(f'vis/{run}_losses.png')
+    plt.clf()
+
+    # test model on datapoints in the training set
+    accuracy, actual, predicted = test(model, testloader)
+  
+    # plot accuracies
+    correct_counts, class_counts = get_results(actual, predicted, idx_to_label, classification)
+    class_accuracy = [i/j for i,j in zip(correct_counts, class_counts)]
  
-  # make arrays for bar plot
-  all_accuracies = [accuracy]
-  all_accuracies.extend(class_accuracy)
-  accuracy_labels = ['Total Accuracy']
-  accuracy_labels.extend(classes)
-  total_correct, total = sum(correct_counts), sum(class_counts)
-  accuracy_counts = [f'{total_correct}/{total}']
-  accuracy_counts.extend([f'{i}/{j}' for i,j in zip(correct_counts, class_counts)])
+    # make arrays for bar plot
+    all_accuracies = [accuracy]
+    all_accuracies.extend(class_accuracy)
+    accuracy_labels = ['Total Accuracy']
+    accuracy_labels.extend(classes)
+    total_correct, total = sum(correct_counts), sum(class_counts)
+    accuracy_counts = [f'{total_correct}/{total}']
+    accuracy_counts.extend([f'{i}/{j}' for i,j in zip(correct_counts, class_counts)])
   
-  bar1 = plt.bar(list(range(N+1)),all_accuracies, tick_label=accuracy_labels)
-  for i in range(N+1):
+    bar1 = plt.bar(list(range(N+1)),all_accuracies, tick_label=accuracy_labels)
+    for i in range(N+1):
       bar = bar1[i]
       height = bar.get_height()
       plt.text(bar.get_x() + bar.get_width()/2.0, height, f'{accuracy_counts[i]}', ha='center', va='bottom')
-  plt.title(f'Accuracies for {save_prefix}')
-  plt.savefig(f'vis/{save_prefix}_accuracy.png')
-  plt.clf()
+    plt.title(f'Accuracies for {run}')
+    plt.savefig(f'vis/{run}_accuracy.png')
+    plt.clf()
 
-  # Confusion matrix
-  M = [[class_accuracy[0], class_counts[1]-class_accuracy[1]],[class_counts[0]-class_accuracy[0] ,class_accuracy[1]]] 
+    # Confusion matrix
+    M = [[correct_counts[0], class_counts[1]-correct_counts[1]],[class_counts[0]-correct_counts[0], correct_counts[1]]] 
   
-  fig = plt.figure()
-  ax = plt.gca()
-  im = ax.matshow(M, cmap=plt.cm.Blues)
-  fig.colorbar(im)
+    fig = plt.figure()
+    ax = plt.gca()
+    im = ax.matshow(M, cmap=plt.cm.Blues)
+    fig.colorbar(im)
   
-  for i in range(N):
-    for j in range(N):
-      ax.text(x=i,y=j,s=M[i][j], va='center',ha='center')
+    for i in range(N):
+      for j in range(N):
+        ax.text(x=i,y=j,s=M[i][j], va='center',ha='center')
 
-  ax.set_xticks(np.arange(N))
-  ax.set_yticks(np.arange(N))
-  ax.set_xticklabels(classes)
-  ax.set_yticklabels(['Correct','Incorrect'])
-  plt.title('Confusion Matrix')
-  plt.ylabel('Predicted')
-  plt.xlabel('Actual')
-  plt.savefig(f'vis/{save_prefix}_confusion.png')
-  plt.clf()
+    ax.set_xticks(np.arange(N))
+    ax.set_yticks(np.arange(N))
+    ax.set_xticklabels(classes)
+    ax.set_yticklabels(['Correct','Incorrect'])
+    plt.title('Confusion Matrix')
+    plt.ylabel('Predicted')
+    plt.xlabel('Actual')
+    plt.savefig(f'vis/{run}_confusion.png')
+    plt.clf()
 
 
-  # test with removed images
-  removed_folder = [f'{removed_path}/{c}_Test' for c in classes]
-  removed_loader = [get_removed_data(rf, batch_size=25) for rf in removed_folder]
+    # test with removed images
+    removed_folder = [f'{removed_path}/{c}_Test' for c in classes]
+    removed_loader = [get_removed_data(rf, batch_size=25) for rf in removed_folder]
 
-  labeled = []
-  total = []
-  for loader in removed_loader:
-    incorrect, counts = test_removed(model, loader)
-    labeled.append(incorrect)
-    total.append(counts)
+    labeled = []
+    total = []
+    for loader in removed_loader:
+      incorrect, counts = test_removed(model, loader)
+      labeled.append(incorrect)
+      total.append(counts)
 
   
-  bar2 = plt.bar(list(range(N)), labeled, tick_label=classes)
-  for i in range(N):
+    bar2 = plt.bar(list(range(N)), labeled, tick_label=classes)
+    for i in range(N):
       bar = bar2[i]
       height = bar.get_height()
-      plt.text(bar.get_x() + bar.get_width()/2.0, height, f'{total[i]}', ha='center', va='bottom')
-  plt.title(f'Number of people not in dataset that were identified for {save_prefix}')
-  plt.savefig(f'vis/{save_prefix}_removed.png')
-  plt.clf()
+      plt.text(bar.get_x() + bar.get_width()/2.0, height, f'{labeled[i]}/{total[i]}', ha='center', va='bottom')
+    plt.title(f'Number of people not in dataset that were identified for {run}')
+    plt.savefig(f'vis/{run}_removed.png')
+    plt.clf()
 

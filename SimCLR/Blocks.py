@@ -8,7 +8,6 @@ class ResNetBlock(nn.Module):
   '''
   base block class that will include the logic for the skip connection
   This block has 3 convolution/batchnorm layers between the skip
-
       this isn't quite what's in the papter but it's close
       I would do better if I had a start middle and end block
   '''

@@ -4,6 +4,7 @@ from SimCLR.Layers import ResNetEncoder, ResNetDecoder
 from SimCLR.Components import Conv2dPadded, ProjectionHead
 from SimCLR.Tools import initialization
 import torch.nn.functional as F
+from SimCLR.Loss import RingLoss
 
 class ResNet(nn.Module):
   '''
@@ -33,6 +34,23 @@ class ResNet(nn.Module):
     x = self.encoder(x)
     x = self.decoder(x)
     return x
+
+class RingLossResNet(nn.Module):
+
+  def __init__(self, in_dim, n_classes, loss_weight, *args, **kwargs):
+    super().__init__()
+
+    self.resnet = ResNet(in_dim, n_classes, *args, **kwargs)
+    self.loss = RingLoss(loss_weight)
+
+  def forward(self, x, rep_only=False):
+    out = self.resnet(x)
+    if rep_only:
+      return out
+    loss = self.loss(x)
+    return out, loss
+
+
 
 class ResNetSimCLR(nn.Module):
     

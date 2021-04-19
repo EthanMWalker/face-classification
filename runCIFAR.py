@@ -1,160 +1,164 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Mar  5 19:16:11 2021
+from SimCLR.Models import RingLossResNet
+from SimCLR.Loss import RingLoss
 
-@author: becca
-"""
+from tqdm import tqdm
 
 import torch
-import torchvision as tv
-from torchvision.transforms import transforms
-
-from SimCLR.Augment import TrainDataAugmentation, TuneDataAugmentation,\
-  SimCLRDataTransform, TuneDataTransform
-from SimCLR.Makers import Train, FineTune, Validate, SimCLR
-from SimCLR.Models import ResNetSimCLR
+import torch.nn as nn
+import torchvision
+import torchvision.transforms as transforms
+from torch.utils.data import  random_split
 
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import numpy as np
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_recall_fscore_support
 
 
-def test_finetune():
-  # fine tuning transform
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+
+def get_data(batch_size=256):
   transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize((.5,.5,.5),(.5,.5,.5))]
-  )
-  # dataset for finetuning
-  tuneset = tv.datasets.CIFAR10(
-    root='Data', train=True, download=True,
-    transform=transform
+    [
+      transforms.ToTensor(), 
+      transforms.Normalize((.5,.5,.5),(.5,.5,.5))
+    ]
   )
 
-  # make fine tuning object
-  simclr = FineTune(
-    mlp_layers=3, batch_size=10,
-    blocks_sizes=[2**i for i in [5,6,7,8]],
-    blocks_layers=[2,2,2,2]
+  trainset = torchvision.datasets.CIFAR10(
+    root='Data', train=True, download=True, transform=transform
+  )
+  trainloader = torch.utils.data.DataLoader(
+    trainset, batch_size=batch_size, shuffle=True, num_workers=2
   )
 
-  # do the fine tuning
-  data = simclr.load_data(tuneset)
-  model, losses = simclr.fine_tune(data, 'chkpt/CIFAR10-tune-test.tar', n_epochs=10)
+  testset = torchvision.datasets.CIFAR10(
+    root='Data', train=False, download=True, transform=transform
+  )
+  testloader = torch.utils.data.DataLoader(
+    testset, batch_size=batch_size, shuffle=True, num_workers=2
+  )
+
+  return trainloader, testloader
+
+
+def train(model, opt, crit, sch, trainloader, n_epochs, filename):
+
+  losses = []
+
+  with tqdm(total=len(trainloader)*n_epochs) as prog:
+    for i in range(n_epochs):
+      running_loss = 0
+      for k,(x,y) in enumerate(trainloader):
+
+        x = x.to(device)
+        y = y.to(device)
+
+        out, loss = model(x)
+        loss = crit(out,y) + loss
+
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+
+        running_loss += loss.item()
+
+        prog.set_description(f'epoch: {i} | Loss: {loss.item():.3f}')
+        prog.update()
+
+        if k % 10 == 9:
+          losses.append(running_loss/10)
+          running_loss = 0
+
+      if i > 20:
+        sch.step()
+      
+      if i % 10 == 0:
+        torch.save(
+          {
+            'model':model.state_dict(),
+            'opt': opt.state_dict(),
+            'epoch': i
+          },
+          filename
+        )
 
   return model, losses
 
 
-def trainCIFAR():
-  s = 1
-  input_shape = (96,96,3)
-  temperature = .5
-  
-  # get transform pipeline
-  transform = TrainDataAugmentation(s, input_shape)
-  augment = transform.augment()
-  
-  # load data
-  trainset = tv.datasets.CIFAR10(
-    root='Data', train=True, download=False, 
-    transform=SimCLRDataTransform(augment)
-  )
-  
-  simclr = Train()
-  data = simclr.load_data(trainset)
-  model,losses = simclr.train(data, temperature,n_epochs=1,ckpt_path='CIFAR10.tar')
-  return model, losses
 
-def validateCIFAR(modelpath):
-  s = 1
-  input_shape = (96,96,3)  
+def test(model, testloader):
   
-  # get transform pipeline
-  transform = TuneDataAugmentation(s, input_shape)
-  augment = transform.augment()
+  correct = 0
+  total = 0
+
+  actual = []
+  predicted = []
+
+  with tqdm(total=len(testloader)) as prog:
+    prog.set_description('Validating')
+    with torch.no_grad():
+      for x,y in testloader:
+        x = x.to(device)
+        y = y.to(device)
+        
+        out = model(x, rep_only=True)
+        preds = out.argmax(dim=1)
+
+        total += y.size(0)
+        correct += sum(preds == y)
+        
+        actual.extend(y.detach().cpu().tolist())
+        predicted.extend(preds.detach().cpu().tolist())
+
+
+        prog.set_description(f'Validating | accuracy: {correct/total:.3f}')
+        prog.update() 
+  print("correct", correct.item(), total)
+
+  return (correct/total).item(), actual, predicted
+
+
+
+
+if __name__ == '__main__':
   
-  # load data
-  testdata = tv.datasets.CIFAR10(root='TestData',
-                                  train=False,download=False,transform=SimCLRDataTransform(augment))
-  
-  simclr = Validate()
-  testloader = simclr.load_data(testdata)
-  accuracy =  simclr.validate_labels(modelpath,testloader)
-  return accuracy
+  trainloader, testloader = get_data()
 
-def end_to_end():
-  s=1
-  input_shape = (96,96,3)  
-
-  # set up training data
-  train_trans = TrainDataAugmentation(s, input_shape)
-  train_aug = train_trans.augment()
-
-  train_data = tv.datasets.CIFAR10(
-    root='Data', train=True, download=True, 
-    transform=SimCLRDataTransform(train_aug)
+  model = RingLossResNet(3, 10, .01, blocks_layers=[3,4,6,3]).to(device)
+  crit = nn.CrossEntropyLoss()
+  opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+  sch = torch.optim.lr_scheduler.CosineAnnealingLR(
+    opt, len(trainloader)
   )
 
-  # set up tuning data
-  tune_trans = TuneDataAugmentation(s, input_shape)
-  tune_aug = tune_trans.augment()
-
-  tune_data = tv.datasets.CIFAR10(
-    root='Data', train=True, download=True, 
-    transform=TuneDataTransform(tune_aug)
+  model, losses = train(
+    model, opt, crit, sch,
+    trainloader, 100, 'chkpt/rl_test.tar'
   )
 
-  # set up val data
-  val_data = tv.datasets.CIFAR10(
-    root='Data', train=False, download=True, 
-    transform=TuneDataTransform(tune_aug)
-  )
-
-  # create the base model
-  model = ResNetSimCLR(in_channels=3, n_classes=10, mlp_layers=2)
-  simclr = SimCLR(model)
-  print(f'Our model has {simclr.trainer.num_params:,} parameters')
-
-  results = simclr.full_model_maker(
-    train_data, tune_data, val_data, n_cycles=2, train_epochs=50, tune_epochs=20,
-    train_path='chkpt/train.tar', tune_path='chkpt/tune.tar'
-  )
-
-  return results
-
-if __name__ == "__main__":
-#    model, losses = trainCIFAR()
-  # accuracy = validateCIFAR('CIFAR10.tar81')
-  model, train_loss, tune_loss, accuracy, actual, predicted = end_to_end()
-
-  plt.plot(train_loss)
-  plt.title('train loss')
-  plt.savefig('vis/train_losses.png')
+  plt.plot(losses)
+  plt.title('loss')
+  plt.savefig('vis/rl_cifar_losses.png')
   plt.clf()
 
-  plt.plot(tune_loss)
-  plt.title('tune losses')
-  plt.savefig('vis/tune_losses.png')
-  plt.clf()
-
-  plt.plot(accuracy)
-  plt.title('accuracy')
-  plt.savefig('vis/accuracy.png')
-  plt.clf()
-
+  accuracy, actual, predicted = test(model, testloader)
 
   classes = [
-    'airplanes', 'cars', 'birds', 'cats', 'deer', 'dogs', 'frogs', 
-    'horses', 'ships', 'trucks'
+    'plane', 'car', 'bird', 'cat', 'deer', 'dog',
+    'frog', 'horse', 'ship', 'truck'
   ]
 
   matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
 
-  figure = plt.figure(figsize=(16,9))
+  figure = plt.figure(figsize=(9,9))
   ax = figure.add_subplot(111)
-
-
   disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
   disp.plot(ax=ax)
-
-  plt.savefig('vis/confusion_matrix.png')
+  plt.title(f'accuracy = {accuracy}')
+  plt.savefig('vis/rl_cifar_confusion_matrix.png')
   plt.clf()
+
+
+

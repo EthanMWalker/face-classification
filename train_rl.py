@@ -3,6 +3,7 @@ from SimCLR.Models import RingLossResNet
 from SimCLR.Loss import RingLoss
 
 from tqdm import tqdm
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -36,7 +37,7 @@ def get_data(batch_size=128):
     root='Data', train=False, download=True, transform=transform
   )
   testloader = torch.utils.data.DataLoader(
-    trainset, batch_size=batch_size, shuffle=True, num_workers=2
+    testset, batch_size=batch_size, shuffle=True, num_workers=2
   )
 
   return trainloader, testloader
@@ -118,39 +119,41 @@ def test(model, testloader):
 if __name__ == '__main__':
   trainloader, testloader = get_data()
 
-  model = RingLossResNet(3, 10, .01, blocks_layers=[3,4,6,3]).to(device)
-  crit = nn.CrossEntropyLoss()
-  opt = torch.optim.Adam(model.parameters(), lr=1e-4)
-  sch = torch.optim.lr_scheduler.CosineAnnealingLR(
-    opt, len(trainloader)
-  )
+  for weight in np.linspace(.001,.1,20):
 
-  model, losses = train(
-    model, opt, crit, sch,
-    trainloader, 50, 'chkpt/rl_test.tar'
-  )
+    model = RingLossResNet(3, 10, .01, blocks_layers=[3,4,6,3]).to(device)
+    crit = nn.CrossEntropyLoss()
+    opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+    sch = torch.optim.lr_scheduler.CosineAnnealingLR(
+      opt, len(trainloader)
+    )
 
-  plt.plot(losses)
-  plt.title('loss')
-  plt.savefig('vis/rl_cifar_losses.png')
-  plt.clf()
+    model, losses = train(
+      model, opt, crit, sch,
+      trainloader, 31, f'chkpt/rl_weight{weight}.tar'
+    )
 
-  accuracy, actual, predicted = test(model, testloader)
+    plt.plot(losses)
+    plt.title('loss')
+    plt.savefig(f'vis/rl_cifar_losses{weight}.png')
+    plt.clf()
 
-  classes = [
-    'plane', 'car', 'bird', 'cat', 'deer', 'dog',
-    'frog', 'horse', 'ship', 'truck'
-  ]
+    accuracy, actual, predicted = test(model, testloader)
 
-  matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
+    classes = [
+      'plane', 'car', 'bird', 'cat', 'deer', 'dog',
+      'frog', 'horse', 'ship', 'truck'
+    ]
 
-  figure = plt.figure(figsize=(9,9))
-  ax = figure.add_subplot(111)
-  disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
-  disp.plot(ax=ax)
-  plt.title(f'accuracy = {accuracy}')
-  plt.savefig('vis/rl_cifar_confusion_matrix.png')
-  plt.clf()
+    matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
+
+    figure = plt.figure(figsize=(9,9))
+    ax = figure.add_subplot(111)
+    disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
+    disp.plot(ax=ax)
+    plt.title(f'accuracy = {accuracy}')
+    plt.savefig(f'vis/rl_cifar_confusion_matrix{weight}.png')
+    plt.clf()
 
 
 

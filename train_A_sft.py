@@ -37,7 +37,7 @@ def get_data(batch_size=128):
     root='Data', train=False, download=True, transform=transform
   )
   testloader = torch.utils.data.DataLoader(
-    trainset, batch_size=batch_size, shuffle=True, num_workers=2
+    testset, batch_size=batch_size, shuffle=True, num_workers=2
   )
 
   return trainloader, testloader
@@ -120,42 +120,44 @@ def test(model, testloader):
 if __name__ == '__main__':
   trainloader, testloader = get_data()
 
-  model = ASoftmaxResNet(3, 3, 10, blocks_layers=[3,4,6,3]).to(device)
-  opt = torch.optim.Adam(model.parameters(), lr=1e-4)
-  sch = torch.optim.lr_scheduler.CosineAnnealingLR(
-    opt, len(trainloader)
-  )
+  for mid in [3,5,10,20,30]:
+    
+    model = ASoftmaxResNet(3, mid, 10, blocks_layers=[3,4,6,3]).to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=1e-5)
+    sch = torch.optim.lr_scheduler.CosineAnnealingLR(
+      opt, len(trainloader)
+    )
 
-  model, losses = train(
-    model, opt, sch,
-    trainloader, 30, 'chkpt/asft_test.tar'
-  )
+    model, losses = train(
+      model, opt, sch,
+      trainloader, 31, f'chkpt/asft_mid{mid}.tar'
+    )
 
-  plt.plot(losses)
-  plt.title('loss')
-  plt.savefig('vis/asft_cifar_losses.png')
-  plt.clf()
+    plt.plot(losses)
+    plt.title('loss')
+    plt.savefig(f'vis/asft_cifar_losses{mid}.png')
+    plt.clf()
 
-  accuracy, actual, predicted, embeddings = test(model, testloader)
+    accuracy, actual, predicted, embeddings = test(model, testloader)
 
-  classes = [
-    'plane', 'car', 'bird', 'cat', 'deer', 'dog',
-    'frog', 'horse', 'ship', 'truck'
-  ]
+    classes = [
+      'plane', 'car', 'bird', 'cat', 'deer', 'dog',
+      'frog', 'horse', 'ship', 'truck'
+    ]
 
-  matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
+    matrix = confusion_matrix(actual, predicted, labels=[0,1,2,3,4,5,6,7,8,9])
 
-  figure = plt.figure(figsize=(9,9))
-  ax = figure.add_subplot(111)
-  disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
-  disp.plot(ax=ax)
-  plt.title(f'accuracy = {accuracy}')
-  plt.savefig('vis/asft_cifar_confusion_matrix.png')
-  plt.clf()
+    figure = plt.figure(figsize=(9,9))
+    ax = figure.add_subplot(111)
+    disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
+    disp.plot(ax=ax)
+    plt.title(f'accuracy = {accuracy}')
+    plt.savefig(f'vis/asft_cifar_confusion_matrix{mid}.png')
+    plt.clf()
 
 
-  with open('chkpt/asft_embds.pickle', 'wb') as out_file:
-    pickle.dump(embeddings, out_file)
+    with open(f'chkpt/asft_embds{mid}.pickle', 'wb') as out_file:
+      pickle.dump(embeddings, out_file)
 
 
 

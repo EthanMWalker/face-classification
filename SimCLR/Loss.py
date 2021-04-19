@@ -58,10 +58,8 @@ class RingLoss(nn.Module):
     Ring loss: Convex Feature Normalization for Face Recognition
     https://arxiv.org/pdf/1803.00130.pdf
 
-  this is to be used in conjunction with another loss, it encourages the
-  model to place logits within a "ring"
-
-  it requires its own optimizer as well
+  this is to be used within a model and in conjunction with another 
+  loss, it encourages the model to place logits within a "ring"
   '''
 
   def __init__(self, loss_weight):
@@ -91,8 +89,8 @@ class AngularSoftmax(nn.Module):
     SphereFace: Deep Hypersphere Embedding for Face Recognition
     https://arxiv.org/pdf/1704.08063.pdf
 
-  This is to be used in conjunction with another loss function
-  it requires its own optimizer
+  This is to be used within a model as it needs to be optimized with the
+  model
   '''
   
   def __init__(self, in_dim, out_dim, m=1.35, eps=1e-10):

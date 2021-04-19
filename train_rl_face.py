@@ -264,7 +264,7 @@ if __name__ == '__main__':
     disp = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=classes)
     disp.plot(ax=ax)
     plt.title(f'accuracy = {accuracy}')
-    plt.savefig(f'vis/{run}_rl_face.png')
+    plt.savefig(f'vis/{run}_rl_face_confusion_matrix.png')
     plt.clf()
 
 

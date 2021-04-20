@@ -37,7 +37,7 @@ def get_face_data(base_folder, train_set, batch_size=256,):
     root=f'{base_folder}/{train_set}_Test', transform=transform
   )
   testloader = torch.utils.data.DataLoader(
-    testset, batch_size=batch_size, shuffle=True, num_workers=2
+    testset, batch_size=int(batch_size/2), shuffle=True, num_workers=2
   )
   
   train_idx = {value: key for key,value in trainset.class_to_idx.items()}
@@ -177,7 +177,7 @@ def test(model, testloader):
 def test_removed(model, missingloader):
   incorrect = 0
   total = 0
-  labeled_threshold = .05
+  labeled_threshold = .5
 
   with tqdm(total=len(testloader)) as prog:
     prog.set_description('Validating')
@@ -188,11 +188,15 @@ def test_removed(model, missingloader):
         y = y.to(device)
 
         out = model(x, rep_only=True)
-        max_values = out.max(dim=1)
+        softmax = nn.Softmax(dim=1)
+        percent_output = softmax(out)
+
+        max_values = percent_output.max(dim=1)
         labeled = max_values[0] >= labeled_threshold
         labeled_idx = max_values[1][labeled]
-        print(max_values)
         
+        print("out", percent_output)
+        print("max", max_values)
         if len(labeled_idx):
           incorrect += 1
         total += y.size(0)
@@ -207,13 +211,13 @@ if __name__ == '__main__':
   removed_path = 'GenderDatasets'
   N = len(classes)
 
-  for run in ['Female50']:#, 'Male60', 'Male70', 'Male80', 'Male90']:
+  for run in ['Male50', 'Female50', 'Male60', 'Female60', 'Male70', 'Female70', 'Male80', 'Female80', 'Male90', 'Female90']:
   
     trainloader, testloader, idx_to_label = get_face_data('GenderDatasets/Percents', run)
+    print("N batches, batch_size):", len(trainloader), len(trainloader)*256)
     n_classes = len(idx_to_label)
 
-
-    run = 'Female50_4'
+    run = 'Male50'
     model = RingLossResNet(3, n_classes, .01, blocks_layers=[3,4,6,3]).to(device)
     crit = nn.CrossEntropyLoss()
     opt = torch.optim.Adam(model.parameters(), lr=1e-4)
@@ -224,7 +228,7 @@ if __name__ == '__main__':
     # train model
     model, losses = train(
       model, opt, crit, sch,
-      trainloader, 35, f'chkpt/{run}.tar'
+      trainloader, 75, f'chkpt/{run}.tar'
     )
 
     plt.plot(losses)
@@ -242,13 +246,14 @@ if __name__ == '__main__':
     # make arrays for bar plot
     all_accuracies = [accuracy]
     all_accuracies.extend(class_accuracy)
-    accuracy_labels = ['Total Accuracy']
+    accuracy_labels = [f'Total Accuracy']
     accuracy_labels.extend(classes)
     total_correct, total = sum(correct_counts), sum(class_counts)
     accuracy_counts = [f'{total_correct}/{total}']
     accuracy_counts.extend([f'{i}/{j}' for i,j in zip(correct_counts, class_counts)])
-  
-    bar1 = plt.bar(list(range(N+1)),all_accuracies, tick_label=accuracy_labels)
+    tick_labels = [f'{i}: {j}' for i, j in zip(accuracy_labels, accuracy_counts)]
+
+    bar1 = plt.bar(list(range(N+1)),all_accuracies, tick_label=tick_labels)
     for i in range(N+1):
       bar = bar1[i]
       height = bar.get_height()

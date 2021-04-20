@@ -209,7 +209,7 @@ if __name__ == '__main__':
   removed_path = 'RaceDatasets'
   N = len(classes)
 
-  for run in ['White20', 'White30', 'White40', 'White50', 'White60']:
+  for run in ['White90', 'White95', 'White98']:
   
     trainloader, testloader, idx_to_label = get_face_data('Data/RaceDatasets/Percents', run, 128)
     n_classes = len(idx_to_label)

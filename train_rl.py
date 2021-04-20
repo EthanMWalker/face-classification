@@ -119,9 +119,9 @@ def test(model, testloader):
 if __name__ == '__main__':
   trainloader, testloader = get_data()
 
-  for weight in np.linspace(.001,.1,5):
+  for weight in [.001,.01,.1]:
 
-    model = RingLossResNet(3, 10, .01, blocks_layers=[3,4,6,3]).to(device)
+    model = RingLossResNet(3, 10, weight, blocks_layers=[3,4,6,3]).to(device)
     crit = nn.CrossEntropyLoss()
     opt = torch.optim.Adam(model.parameters(), lr=1e-4)
     sch = torch.optim.lr_scheduler.CosineAnnealingLR(

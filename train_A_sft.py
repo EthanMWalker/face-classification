@@ -120,7 +120,7 @@ def test(model, testloader):
 if __name__ == '__main__':
   trainloader, testloader = get_data()
 
-  for mid in [3,5,10,20,30]:
+  for mid in [3,10,20,30]:
     
     model = ASoftmaxResNet(3, mid, 10, blocks_layers=[3,4,6,3]).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=1e-5)

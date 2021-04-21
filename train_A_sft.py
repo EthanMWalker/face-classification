@@ -11,7 +11,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pltn
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 

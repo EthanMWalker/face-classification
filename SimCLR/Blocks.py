@@ -1,8 +1,8 @@
 import torch.nn as nn
 from SimCLR.Tools import activation_func
-from SimCLR.Components import Conv2dPadded
+#from Components import Conv2dPadded
 
-from functools import partial
+#from functools import partial
 
 class ResNetBlock(nn.Module):
   '''
@@ -13,24 +13,31 @@ class ResNetBlock(nn.Module):
       I would do better if I had a start middle and end block
   '''
 
-  def __init__(self, in_channels, out_channels,
+  def __init__(self, in_channels, mid_channels, out_channels,
            resampling=1, conv=None, activation='relu',
            use_batch=True, use_dropout=True):
     super().__init__()
     self.in_channels = in_channels
+    self.mid_channels = mid_channels
     self.out_channels = out_channels
     self.activation = activation
     self.activate = activation_func[activation]
     self.resampling = resampling
     self.use_batch = use_batch
 
+
     # set the convolution type
-    if conv is None:
-      self.conv = partial(
-        Conv2dPadded, kernel_size=3, bias=False, padding=3
-      )
-    else:
-      self.conv = conv
+#    if conv is None:
+#      self.conv1 = nn.Conv2d(
+#          self.in_channels, self.mid_channels,
+#          kernel_size=1,  bias=False
+#        )
+#      self.conv3 = nn.Conv2d(
+#          self.mid_channels, self.mid_channels,
+#          kernel_size=1,  bias=False
+#        ),
+#    else:
+#      self.conv = conv
 
     # apply dropout
     if use_dropout:
@@ -40,11 +47,14 @@ class ResNetBlock(nn.Module):
 
     # here we have three blocks between the skips
     self.blocks = nn.Sequential(
-      self.conv_batchnorm(
-        in_channels, out_channels, bias=False, stride=self.resampling
-      ),
+      nn.Conv2d(self.in_channels, self.mid_channels, kernel_size=1, bias=False),
+      nn.BatchNorm2d(self.mid_channels),
       self.activate,
-      self.conv_batchnorm(out_channels, out_channels, bias=False),
+      nn.Conv2d(self.mid_channels, self.mid_channels, kernel_size=3, bias=False,padding=1),
+      nn.BatchNorm2d(self.mid_channels),
+      self.activate,
+      nn.Conv2d(self.mid_channels, self.out_channels, kernel_size=1,  bias=False),
+      nn.BatchNorm2d(self.out_channels),
       dropout
     )
 
@@ -53,7 +63,7 @@ class ResNetBlock(nn.Module):
       self.skip = nn.Sequential(
         nn.Conv2d(
           self.in_channels, self.out_channels,
-          kernel_size=1, stride=self.resampling, bias=False
+          kernel_size=3,  bias=False, padding=1
         ),
         nn.BatchNorm2d(self.out_channels)
       )

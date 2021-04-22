@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 class NTCrossEntropyLoss(nn.Module):
@@ -49,3 +50,80 @@ class NTCrossEntropyLoss(nn.Module):
 
     loss = self.criterion(logits, labels)
     return loss / dbl_batch
+
+
+class RingLoss(nn.Module):
+  '''
+  Ring loss based on the paper 
+    Ring loss: Convex Feature Normalization for Face Recognition
+    https://arxiv.org/pdf/1803.00130.pdf
+
+  this is to be used within a model and in conjunction with another 
+  loss, it encourages the model to place logits within a "ring"
+  '''
+
+  def __init__(self, loss_weight):
+    super().__init__()
+    self.weight = loss_weight
+    self.radius = nn.Parameter(torch.Tensor(1))
+
+  
+  def forward(self, x):
+
+    # if the radius is negative then set it to the mean
+    if self.radius.data.item() < 0:
+      self.radius.data.fill_(x.mean().item())
+    
+    # compute loss
+    x = torch.linalg.norm(x, ord=2, dim=1)
+    x = x - self.radius
+    x = torch.pow(torch.abs(x), 2).mean()
+    x = x/2
+    loss = x * self.weight
+
+    return loss
+
+class AngularSoftmax(nn.Module):
+  '''
+  Angular Softmax loss based on the paper
+    SphereFace: Deep Hypersphere Embedding for Face Recognition
+    https://arxiv.org/pdf/1704.08063.pdf
+
+  This is to be used within a model as it needs to be optimized with the
+  model
+  '''
+  
+  def __init__(self, in_dim, out_dim, m=1.35, eps=1e-10):
+    super().__init__()
+    self.m = m
+    self.eps = eps
+    self.s = 64.0
+    self.W = nn.Linear(in_dim, out_dim, bias=False)
+  
+  def forward(self, x, y, repr=False):
+
+    for param in self.W.parameters():
+      param = F.normalize(param, p=2, dim=1)
+
+    # norms = torch.linalg.norm(x, ord=2, dim=1)
+    x = F.normalize(x, p=2, dim=1)
+
+    prods = self.W(x)
+    if repr:
+      return prods
+
+    cos_theta = torch.diag(prods.transpose(0,1)[y])
+    cos_theta = torch.clamp(cos_theta, -1+self.eps, 1-self.eps)
+    numer_theta = torch.acos(cos_theta)
+    numer = self.s * torch.cos(self.m * numer_theta)
+
+    denom = [
+      self.s*torch.cat([prods[i,:yi],prods[i,yi+1:]]) for i,yi in enumerate(y)
+    ]
+    denom = torch.stack(denom)
+    denom = torch.exp(numer) + torch.sum(torch.exp(denom), dim=1)
+
+    loss = numer - torch.log(denom)
+
+    return -torch.mean(loss)
+    

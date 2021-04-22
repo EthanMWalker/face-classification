@@ -11,7 +11,7 @@ from SimCLR.Loss import NTCrossEntropyLoss
 from tqdm import tqdm
 
 class BaseModel:
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=128, *args, **kwargs):
     if model is None:
       # define the model
@@ -39,8 +39,8 @@ class BaseModel:
 
 class Train(BaseModel):
 
-  def __init__(self, model=None, in_channels=3, n_classes=10,
-              batch_size=128, *args, **kwargs):
+  def __init__(self, model=None, in_channels=3, n_classes=5,
+              batch_size=64, *args, **kwargs):
 
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
@@ -56,6 +56,7 @@ class Train(BaseModel):
     criterion = NTCrossEntropyLoss(temperature, self.batch_size, 
                                    self.device).to(self.device)
     optimizer = LARS(torch.optim.SGD(self.model.parameters(), lr=4))
+    # optimizer = optimizer.to(self.device)
 
     losses = []
 
@@ -100,13 +101,13 @@ class Train(BaseModel):
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,},ckpt_path)
+            'loss': losses,},ckpt_path + f'{epoch}')
     
 
     return self.return_model(), losses
 
 class FineTune(BaseModel):
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=30, *args, **kwargs):
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
@@ -120,8 +121,8 @@ class FineTune(BaseModel):
     # trainers
     criterion = nn.CrossEntropyLoss().to(self.device)
     
-    optimizer = torch.optim.SGD(
-      self.model.parameters(), lr=.001, momentum=.9
+    optimizer = torch.optim.Adam(
+      self.model.parameters(), lr=.0001
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
       optimizer, T_max=len(dataloader), eta_min=0, last_epoch=-1
@@ -136,7 +137,6 @@ class FineTune(BaseModel):
         for data in dataloader:
           i += 1
           optimizer.zero_grad()
-        
           x = data[0].to(self.device)
           y = data[1].to(self.device)
         
@@ -179,7 +179,7 @@ class Validate(BaseModel):
   Takes a trained ResNetSimCLR model and computes accuracy 
   '''
   
-  def __init__(self, model=None, in_channels=3, n_classes=10,
+  def __init__(self, model=None, in_channels=3, n_classes=5,
               batch_size=128, *args, **kwargs):
     super().__init__(
       model, in_channels, n_classes, batch_size, *args, **kwargs
@@ -225,8 +225,8 @@ class Validate(BaseModel):
 
 
 class SimCLR:
-  def __init__(self, model=None, in_channels=3, n_classes=10, 
-              train_batch_size=1024, tune_batch_size=10, train_temp=.5):
+  def __init__(self, model=None, in_channels=3, n_classes=5, 
+              train_batch_size=80, tune_batch_size=10, train_temp=.5):
 
     if model is None:
       self.trainer = Train(
@@ -238,6 +238,7 @@ class SimCLR:
     self.tune_batch_size = tune_batch_size
     self.train_batch_size = train_batch_size
     self.train_temp = train_temp
+    self.n_classes = n_classes
   
   def make_tuner(self, model):
     '''
@@ -251,7 +252,7 @@ class SimCLR:
     n_classes = self.trainer.model.n_classes
 
     model = ResNetSimCLR(
-      in_channels, n_classes, mlp_layers=3
+      in_channels, self.n_classes, mlp_layers=3, blocks_layers=[3,4,6,3]
     )
 
     model.resnet.load_state_dict(resnet_dict)
@@ -304,9 +305,9 @@ class SimCLR:
       self.make_validator(self.tuner.model)
       acc, actual, predicted = self.validate(val_data)
       accuracy.append(acc)
-    
+#    
     results = (
       self.tuner.model, train_loss, tune_loss,
-      accuracy, actual, predicted
+     accuracy, actual, predicted
     )
     return results

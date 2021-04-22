@@ -9,3 +9,5 @@ SimCLR-2/
 Data/
 data/
 SimCLR/TestData
+chkpt/
+SimCLR/__pycache__/

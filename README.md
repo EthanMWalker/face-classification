@@ -173,7 +173,7 @@ tributes in the Wild December, 2015http://mmlab.ie.cuhk.edu.hk/projects/CelebA.h
 2017. https://arxiv.org/pdf/1708.03888.pdf
 
 
-# Exploring The effects of Activation Functions on Deep Facial Recognition Algorithms
+# Exploring The Effect of Loss Functions on Deep Facial Recognition Algorithms
 
 ### Rebecca Jones, Ethan Walker
 
